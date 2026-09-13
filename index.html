@@ -1,0 +1,1865 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a1628">
+<title>Рыбалка</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
+  html,body { width:100%; height:100%; overflow:hidden; font-family:'Segoe UI',system-ui,sans-serif; background:#0a1628; color:#fff; overscroll-behavior:none; position:fixed; }
+
+  #game { position:absolute; width:100vw; height:100vh; overflow:hidden; }
+  body.autoRotate #game {
+    position:fixed !important;
+    top:50% !important; left:50% !important;
+    width:100vh !important; height:100vw !important;
+    transform:translate(-50%, -50%) rotate(90deg) !important;
+    transform-origin:center center !important;
+  }
+  canvas { display:block; width:100%; height:100%; touch-action:none; position:absolute; inset:0; }
+
+  #topBar { position:absolute; top:0; left:0; right:0; padding: max(6px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) 6px max(8px, env(safe-area-inset-left)); display:flex; align-items:center; gap:6px; background:linear-gradient(180deg, rgba(0,0,0,0.7), rgba(0,0,0,0)); z-index:10; pointer-events:none; height:50px; }
+  .chip { background:rgba(0,0,0,0.75); border-radius:20px; padding:5px 10px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:4px; border:1px solid rgba(255,255,255,0.12); white-space:nowrap; height:30px; }
+  .chip.money { color:#f1c40f; }
+  .chip.level { color:#2ecc71; }
+  .chip.island { color:#3498db; max-width:160px; overflow:hidden; text-overflow:ellipsis; }
+  .chip.weather { color:#e67e22; }
+  .chip.rod { color:#9b59b6; max-width:140px; overflow:hidden; text-overflow:ellipsis; }
+  .chip.bait { color:#e74c3c; }
+  .chip.profile { color:#9b59b6; pointer-events:auto; cursor:pointer; }
+  #topLeft { display:flex; gap:6px; flex:1; overflow:hidden; }
+  #topRight { display:flex; gap:6px; }
+  #xpWrap { position:absolute; top: calc(50px + max(0px, env(safe-area-inset-top))); left: max(10px, env(safe-area-inset-left)); width:130px; height:5px; background:rgba(0,0,0,0.6); border-radius:3px; overflow:hidden; z-index:10; }
+  #xpBar { height:100%; width:0%; background:linear-gradient(90deg,#f1c40f,#f39c12); transition:width 0.3s; }
+
+  .sideBar { position:absolute; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:8px; z-index:20; }
+  #leftBar { left: max(6px, env(safe-area-inset-left)); }
+  #rightBar { right: max(6px, env(safe-area-inset-right)); }
+  .iconBtn { width:46px; height:46px; border-radius:14px; border:none; background:rgba(0,0,0,0.65); color:#fff; font-size:22px; cursor:pointer; display:flex; align-items:center; justify-content:center; border:1.5px solid rgba(255,255,255,0.15); box-shadow:0 3px 8px rgba(0,0,0,0.5); position:relative; }
+  .iconBtn:active { transform:scale(0.92); }
+  .iconBtn .badge { position:absolute; top:-4px; right:-4px; background:#e74c3c; color:#fff; font-size:10px; font-weight:bold; min-width:16px; height:16px; padding:0 4px; border-radius:8px; display:flex; align-items:center; justify-content:center; border:1.5px solid #000; }
+  .iconBtn.gold { border-color:#f1c40f; }
+  .iconBtn.green { border-color:#2ecc71; }
+
+  #bottomBar { position:absolute; bottom: max(10px, env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); z-index:15; }
+  .actionBtn { padding:14px 40px; border-radius:16px; border:none; color:#fff; font-size:17px; font-weight:900; cursor:pointer; box-shadow:0 5px 0 rgba(0,0,0,0.4), 0 8px 16px rgba(0,0,0,0.5); letter-spacing:0.5px; }
+  .actionBtn:active { transform:translateY(3px); box-shadow:0 2px 0 rgba(0,0,0,0.4); }
+  #castBtn { background:linear-gradient(180deg,#2ecc71,#27ae60); min-width:230px; height:56px; }
+
+  #hookBtn { position:absolute; bottom: max(10px, env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); padding:14px 40px; border-radius:16px; border:3px solid #fff; background:linear-gradient(180deg,#e74c3c,#c0392b); color:#fff; font-size:18px; font-weight:900; letter-spacing:2px; cursor:pointer; box-shadow:0 5px 0 #922b21, 0 8px 18px rgba(0,0,0,0.6); z-index:30; display:none; }
+  #hookBtn.show { display:block; }
+
+  #tensionWrap { position:absolute; top: calc(70px + max(0px, env(safe-area-inset-top))); left:50%; transform:translateX(-50%); width:55%; max-width:400px; height:22px; background:rgba(0,0,0,0.85); border-radius:11px; border:3px solid #fff; display:none; z-index:15; }
+  #tensionZone { position:absolute; top:0; height:100%; background:rgba(46,204,113,0.55); border-left:3px solid #2ecc71; border-right:3px solid #2ecc71; box-sizing:border-box; border-radius:8px; }
+  #tensionBar { position:absolute; top:0; left:0; height:100%; width:0%; background:linear-gradient(90deg,#f1c40f,#e74c3c); transition:width 0.03s linear; border-radius:8px; }
+  #tensionLabel { position:absolute; top:-22px; left:50%; transform:translateX(-50%); font-size:11px; color:#fff; font-weight:bold; white-space:nowrap; background:rgba(0,0,0,0.7); padding:3px 10px; border-radius:10px; }
+  #tensionWrap.danger { border-color:#e74c3c; }
+
+  #fishProgress { position:absolute; top: calc(110px + max(0px, env(safe-area-inset-top))); left:50%; transform:translateX(-50%); width:220px; height:16px; background:rgba(0,0,0,0.75); border-radius:8px; overflow:hidden; z-index:15; display:none; border:2px solid #fff; }
+  #fishProgressBar { height:100%; width:0%; background:linear-gradient(90deg,#f39c12,#2ecc71); transition:width 0.15s linear; }
+  #fishProgressLabel { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:10px; font-weight:bold; text-shadow:0 1px 2px #000; color:#fff; }
+
+  #pushHint { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) scale(0.3); pointer-events:none; z-index:60; opacity:0; transition:opacity 0.15s, transform 0.2s; text-align:center; white-space:nowrap; }
+  #pushHint.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
+  #pushHint .line1 { font-size: clamp(26px, 6vw, 46px); font-weight: 900; color: #fff; letter-spacing: 3px; text-shadow: 0 0 10px #e74c3c, 0 0 25px #e74c3c, 0 0 45px #f1c40f, 0 4px 8px #000; }
+  #pushHint .line2 { font-size: clamp(14px, 3vw, 24px); font-weight: 900; color: #f1c40f; letter-spacing: 5px; margin-top: 6px; text-shadow: 0 0 15px #f1c40f, 0 3px 6px #000; }
+
+  #biteTimer { position:absolute; top:50%; left:50%; transform:translate(-50%, 60px); width:180px; height:8px; background:rgba(0,0,0,0.8); border-radius:4px; overflow:hidden; z-index:60; display:none; border:2px solid #fff; }
+  #biteTimerBar { height:100%; width:100%; background:linear-gradient(90deg,#e74c3c,#f1c40f,#2ecc71); }
+
+  #tapBtn { position:absolute; bottom: max(10px, env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); padding:18px 60px; border-radius:20px; border:3px solid #fff; background:linear-gradient(180deg,#3498db,#2980b9); color:#fff; font-size:22px; font-weight:900; letter-spacing:3px; cursor:pointer; box-shadow:0 6px 0 #1f618d, 0 8px 20px rgba(0,0,0,0.5); z-index:30; display:none; }
+  #tapBtn.show { display:block; }
+  #tapBtn.inZone { background:linear-gradient(180deg,#2ecc71,#1e8449); box-shadow:0 6px 0 #145a32, 0 8px 30px rgba(46,204,113,1); }
+  #tapBtn:active { transform:translateX(-50%) translateY(4px); }
+
+  .modal { position:absolute; inset:0; background:rgba(0,0,0,0.94); display:none; flex-direction:column; padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); z-index:100; overflow:hidden; }
+  .modal.active { display:flex; }
+  .modalHeader { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-shrink:0; }
+  .modalHeader h2 { color:#f1c40f; font-size:17px; }
+  .closeBtn { padding:8px 14px; border-radius:12px; border:none; background:linear-gradient(180deg,#e74c3c,#c0392b); color:#fff; font-weight:bold; font-size:16px; cursor:pointer; width:42px; height:42px; box-shadow:0 3px 0 #922b21; display:flex; align-items:center; justify-content:center; }
+  .tabs { display:flex; gap:6px; margin-bottom:10px; overflow-x:auto; padding-bottom:4px; flex-shrink:0; }
+  .tabs::-webkit-scrollbar { display:none; }
+  .tab { padding:9px 14px; background:rgba(52,73,94,0.8); border-radius:10px; color:#fff; border:none; font-weight:700; font-size:13px; cursor:pointer; white-space:nowrap; }
+  .tab.active { background:linear-gradient(180deg,#f1c40f,#d4ac0d); color:#222; }
+
+  .items { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:10px; overflow-y:auto; overflow-x:hidden; padding:2px 4px 12px 2px; flex:1; min-height:0; align-content:start; }
+  .items::-webkit-scrollbar { width:6px; }
+  .items::-webkit-scrollbar-thumb { background:#f39c12; border-radius:3px; }
+
+  .item { background:linear-gradient(180deg,#2c3e50,#1a252f); border-radius:12px; padding:10px; color:#fff; border:2px solid #34495e; display:flex; flex-direction:column; gap:6px; min-height:150px; }
+  .item.owned { border-color:#2ecc71; }
+  .item.equipped { border-color:#f1c40f; box-shadow:0 0 12px rgba(241,196,15,0.5); }
+  .item.locked { opacity:0.5; }
+  .item.legendary { border-color:#f39c12; }
+  .item.mythic { border-color:#e74c3c; }
+  .item.god { border-color:#f1c40f; box-shadow:0 0 14px rgba(241,196,15,0.8); }
+  .item.rainbow { border-color:#e74c3c; box-shadow:0 0 16px rgba(255,100,200,0.7); }
+  .item h3 { font-size:13px; color:#f39c12; line-height:1.2; font-weight:700; }
+  .item .desc { font-size:11px; opacity:0.85; flex:1; line-height:1.35; }
+  .item .price { font-size:12px; font-weight:bold; color:#2ecc71; }
+
+  .buyBtn { padding:9px 10px; font-size:13px; font-weight:900; border:none; border-radius:9px; color:#fff; cursor:pointer; min-height:36px; letter-spacing:0.5px; background:linear-gradient(180deg,#2ecc71,#27ae60); box-shadow:0 3px 0 #1e8449; text-transform:uppercase; width:100%; }
+  .buyBtn:active:not(:disabled) { transform:translateY(2px); box-shadow:0 1px 0 #1e8449; }
+  .buyBtn:disabled { cursor:not-allowed; opacity:0.85; }
+  .buyBtn.disabled-money { background:linear-gradient(180deg,#7f8c8d,#5d6d7e); box-shadow:0 3px 0 #3d4d5c; font-size:11px; }
+  .buyBtn.equipped { background:linear-gradient(180deg,#f1c40f,#d4ac0d); color:#222; box-shadow:0 3px 0 #9a7d0a; }
+  .buyBtn.wear { background:linear-gradient(180deg,#3498db,#2980b9); box-shadow:0 3px 0 #1f618d; }
+  .buyBtn.sell { background:linear-gradient(180deg,#e67e22,#d35400); box-shadow:0 3px 0 #a04000; }
+  .buyBtn.danger { background:linear-gradient(180deg,#e74c3c,#c0392b); box-shadow:0 3px 0 #922b21; }
+  .buyBtn.purple { background:linear-gradient(180deg,#9b59b6,#8e44ad); box-shadow:0 3px 0 #6c3483; }
+
+  /* Панель количества покупки */
+  .qtyPanel { display:flex; gap:6px; margin-bottom:10px; padding:8px 10px; background:rgba(52,73,94,0.5); border-radius:10px; align-items:center; flex-wrap:wrap; flex-shrink:0; }
+  .qtyPanel .qtyLabel { color:#f1c40f; font-size:13px; font-weight:700; margin-right:6px; }
+  .qtyBtn { padding:6px 12px; border-radius:8px; border:2px solid #34495e; background:rgba(0,0,0,0.4); color:#fff; font-size:13px; font-weight:700; cursor:pointer; min-width:44px; }
+  .qtyBtn.active { background:linear-gradient(180deg,#f1c40f,#d4ac0d); color:#222; border-color:#f1c40f; }
+  .qtyBtn:active { transform:scale(0.95); }
+
+  /* Значок запаса */
+  .baitStock { display:flex; gap:4px; align-items:center; font-size:12px; color:#f1c40f; font-weight:700; padding:4px 8px; background:rgba(241,196,15,0.15); border-radius:6px; border:1px solid rgba(241,196,15,0.4); }
+  .baitStock.empty { color:#7f8c8d; background:rgba(127,140,141,0.15); border-color:rgba(127,140,141,0.4); }
+
+  #popup { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) scale(0.6); background:rgba(0,0,0,0.95); padding:14px 24px; border-radius:16px; border:3px solid #f1c40f; color:#fff; text-align:center; display:none; z-index:200; pointer-events:none; opacity:0; transition:opacity 0.25s, transform 0.25s; min-width:200px; }
+  #popup.show { display:block; opacity:1; transform:translate(-50%,-50%) scale(1); }
+  #popup h2 { color:#f1c40f; margin-bottom:6px; font-size:16px; }
+  #popup .fishName { font-size:15px; margin:4px 0; font-weight:600; }
+  #popup .reward { color:#2ecc71; font-weight:bold; font-size:15px; }
+  #popup .xp { color:#f1c40f; font-size:12px; }
+
+  #toastWrap { position:absolute; top: calc(140px + max(0px, env(safe-area-inset-top))); left:50%; transform:translateX(-50%); display:flex; flex-direction:column; gap:6px; z-index:300; pointer-events:none; align-items:center; }
+  .toast { background:rgba(0,0,0,0.9); color:#fff; padding:8px 16px; border-radius:20px; font-size:12px; font-weight:600; opacity:0; transform:translateY(-10px); transition:opacity 0.3s, transform 0.3s; border-left:3px solid #f1c40f; white-space:nowrap; max-width:90vw; overflow:hidden; text-overflow:ellipsis; }
+  .toast.show { opacity:1; transform:translateY(0); }
+
+  #soundBtn { position:absolute; top: calc(56px + max(0px, env(safe-area-inset-top))); right: max(6px, env(safe-area-inset-right)); width:34px; height:34px; padding:0; font-size:15px; border-radius:50%; border:none; background:rgba(0,0,0,0.6); color:#fff; cursor:pointer; z-index:20; display:flex; align-items:center; justify-content:center; }
+
+  #dailyReward { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:linear-gradient(180deg,#f1c40f,#d4ac0d); color:#222; padding:16px 26px; border-radius:16px; text-align:center; display:none; z-index:250; border:3px solid #fff; min-width:220px; }
+  #dailyReward.show { display:block; }
+  #dailyReward h2 { font-size:18px; margin-bottom:6px; }
+  #dailyReward .am { font-size:26px; font-weight:900; margin:6px 0; }
+  #dailyReward button { padding:10px 20px; border:none; border-radius:10px; background:#222; color:#f1c40f; font-weight:bold; font-size:14px; cursor:pointer; margin-top:8px; }
+
+  .statRow { display:flex; justify-content:space-between; padding:7px 12px; background:rgba(255,255,255,0.06); border-radius:8px; margin-bottom:5px; font-size:13px; }
+  .statRow span:last-child { color:#f1c40f; font-weight:bold; }
+
+  #startTutorial { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,0.94); padding:18px 26px; border-radius:16px; border:3px solid #f1c40f; color:#fff; text-align:center; display:none; z-index:80; font-size:14px; line-height:1.6; max-width:440px; }
+  #startTutorial.show { display:block; }
+  #startTutorial .title { font-size:18px; color:#f1c40f; font-weight:bold; margin-bottom:10px; }
+  #startTutorial .step { margin:6px 0; }
+  #startTutorial button { margin-top:12px; padding:10px 20px; border:none; border-radius:10px; background:linear-gradient(180deg,#2ecc71,#27ae60); color:#fff; font-weight:bold; font-size:14px; cursor:pointer; }
+
+  .shake { animation:shake 0.3s; }
+  @keyframes shake { 0%,100% { transform:translate(0,0); } 25% { transform:translate(-6px,3px); } 50% { transform:translate(6px,-3px); } 75% { transform:translate(-4px,-2px); } }
+
+  .profileBox { background:linear-gradient(135deg,#2c3e50,#1a252f); border:2px solid #34495e; border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:8px; }
+  .profileBox.current { border-color:#f1c40f; }
+  .profileBox .pname { font-size:16px; font-weight:900; color:#f39c12; }
+  .profileBox .pinfo { font-size:11px; opacity:0.75; line-height:1.5; }
+  .profileBox .pinfo span { display:inline-block; margin-right:10px; }
+
+  .textInput { width:100%; padding:12px 14px; border-radius:10px; border:2px solid #34495e; background:rgba(0,0,0,0.5); color:#fff; font-size:14px; outline:none; margin-bottom:8px; }
+  .textArea { width:100%; padding:12px 14px; border-radius:10px; border:2px solid #34495e; background:rgba(0,0,0,0.5); color:#fff; font-size:11px; font-family:monospace; outline:none; resize:none; height:120px; margin-bottom:8px; word-break:break-all; }
+
+  @media (max-width: 900px) { .items { grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px; } }
+  @media (max-width: 700px) {
+    .items { grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:6px; }
+    .item { padding:8px; min-height:140px; }
+    .item h3 { font-size:12px; }
+    .item .desc { font-size:10px; }
+  }
+  @media (max-width: 500px) {
+    .items { grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:5px; }
+    .item { padding:7px; min-height:130px; }
+    .buyBtn { font-size:11px; padding:7px; min-height:32px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="game">
+  <canvas id="cv"></canvas>
+
+  <div id="topBar">
+    <div id="topLeft">
+      <div class="chip money">💰<span id="money">0</span></div>
+      <div class="chip level">⭐<span id="level">1</span></div>
+      <div class="chip island">🏝️<span id="islandName">Тихая бухта</span></div>
+      <div class="chip weather">🌤️<span id="weather">Ясно</span></div>
+    </div>
+    <div id="topRight">
+      <div class="chip profile" onclick="openModal('profileModal');renderProfiles()">👤<span id="profileName">Профиль 1</span></div>
+      <div class="chip rod">🎣<span id="rodName">Палка</span></div>
+      <div class="chip bait">🪱<span id="baitName">Руки</span>·<span id="baitCount">∞</span></div>
+    </div>
+  </div>
+  <div id="xpWrap"><div id="xpBar"></div></div>
+  <button id="soundBtn" onclick="toggleSound()">🔊</button>
+
+  <div class="sideBar" id="leftBar">
+    <button class="iconBtn" onclick="openModal('islandModal');renderIslands()">🏝️</button>
+    <button class="iconBtn" onclick="openModal('questModal');renderQuests()">📜</button>
+    <button class="iconBtn" onclick="openModal('statsModal');renderStats()">📊</button>
+    <button class="iconBtn" onclick="openModal('achModal');renderAch()">🏆<span class="badge" id="achBadge">0</span></button>
+  </div>
+
+  <div class="sideBar" id="rightBar">
+    <button class="iconBtn gold" onclick="openModal('shopModal');renderShop()">🛒</button>
+    <button class="iconBtn" onclick="openModal('invModal');renderInv()">🎒<span class="badge" id="invBadge">0</span></button>
+    <button class="iconBtn green" onclick="openModal('premiumModal');renderPremium()">💎</button>
+  </div>
+
+  <div id="bottomBar">
+    <button class="actionBtn" id="castBtn" onclick="startFishing()">🎣 Забросить</button>
+  </div>
+
+  <button id="hookBtn" onclick="hookFish()">✊ ПОДСЕЧЬ</button>
+  <button id="tapBtn">👆 ДЕРЖИ!</button>
+
+  <div id="pushHint">
+    <div class="line1">PUSH IT,</div>
+    <div class="line2">FASTER!</div>
+    <div id="biteTimer"><div id="biteTimerBar"></div></div>
+  </div>
+
+  <div id="startTutorial">
+    <div class="title">🎣 Добро пожаловать!</div>
+    <div class="step">1️⃣ Жми <b>🎣 Забросить</b></div>
+    <div class="step">2️⃣ Когда <b>PUSH IT</b> — жми <b>✊ ПОДСЕЧЬ</b></div>
+    <div class="step">3️⃣ <b>Держи палец</b> на кнопке — натяжение растёт</div>
+    <div class="step">4️⃣ <b>Отпусти</b> если вышло из зелёной зоны</div>
+    <div class="step">⚠️ Перетянешь — леска <b>порвётся!</b></div>
+    <button onclick="closeTutorial()">Понял, начать!</button>
+  </div>
+
+  <div id="fishProgress">
+    <div id="fishProgressBar"></div>
+    <div id="fishProgressLabel">Прогресс: 0%</div>
+  </div>
+
+  <div id="tensionWrap">
+    <div id="tensionLabel">⚖️ Держи в зелёной зоне</div>
+    <div id="tensionZone"></div>
+    <div id="tensionBar"></div>
+  </div>
+
+  <div id="popup">
+    <h2 id="popupTitle">🎉 Поймал!</h2>
+    <div class="fishName" id="popupFish"></div>
+    <div class="reward" id="popupReward"></div>
+    <div class="xp" id="popupXp"></div>
+  </div>
+
+  <div id="toastWrap"></div>
+
+  <div id="dailyReward">
+    <h2>🎁 Награда!</h2>
+    <div style="font-size:36px">💰</div>
+    <div class="am" id="dailyAm">+500</div>
+    <button onclick="claimDaily()">Забрать!</button>
+  </div>
+
+  <div class="modal" id="shopModal">
+    <div class="modalHeader">
+      <h2>🛒 Магазин</h2>
+      <button class="closeBtn" onclick="closeModal('shopModal')">✖</button>
+    </div>
+    <div class="tabs" id="shopTabs">
+      <button class="tab active" onclick="switchTab('rods',this)">🎣 Удочки</button>
+      <button class="tab" onclick="switchTab('baits',this)">🪱 Наживки</button>
+      <button class="tab" onclick="switchTab('upgrades',this)">⚡ Улучшения</button>
+      <button class="tab" onclick="switchTab('bobbers',this)">🎈 Поплавки</button>
+    </div>
+    <div id="qtyPanelWrap"></div>
+    <div class="items" id="shopItems"></div>
+  </div>
+
+  <div class="modal" id="islandModal">
+    <div class="modalHeader">
+      <h2>🏝️ Острова <span style="color:#2ecc71;font-size:13px" id="islandProgress">(1/30)</span></h2>
+      <button class="closeBtn" onclick="closeModal('islandModal')">✖</button>
+    </div>
+    <div class="items" id="islandItems"></div>
+  </div>
+
+  <div class="modal" id="questModal">
+    <div class="modalHeader">
+      <h2>📜 Квесты <span style="color:#2ecc71;font-size:13px" id="questProgress">(0/20)</span></h2>
+      <button class="closeBtn" onclick="closeModal('questModal')">✖</button>
+    </div>
+    <div class="items" id="questItems"></div>
+  </div>
+
+  <div class="modal" id="invModal">
+    <div class="modalHeader">
+      <h2>🎒 Садок <span style="color:#2ecc71;font-size:13px" id="invCount">(0)</span></h2>
+      <button class="closeBtn" onclick="closeModal('invModal')">✖</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+      <button class="buyBtn" style="padding:10px 20px;font-size:14px;min-height:42px;width:auto;" onclick="sellAll()">💸 ПРОДАТЬ ВСЁ</button>
+      <div class="chip">Всего: <span id="invTotal" style="color:#2ecc71;font-weight:bold">0</span>💰</div>
+    </div>
+    <div class="items" id="invItems"></div>
+  </div>
+
+  <div class="modal" id="achModal">
+    <div class="modalHeader">
+      <h2>🏆 Достижения <span style="color:#2ecc71;font-size:13px" id="achProgress">(0/19)</span></h2>
+      <button class="closeBtn" onclick="closeModal('achModal')">✖</button>
+    </div>
+    <div class="items" id="achItems"></div>
+  </div>
+
+  <div class="modal" id="statsModal">
+    <div class="modalHeader">
+      <h2>📊 Статистика</h2>
+      <button class="closeBtn" onclick="closeModal('statsModal')">✖</button>
+    </div>
+    <div style="max-width:600px;margin:0 auto;width:100%;overflow-y:auto" id="statsBody"></div>
+  </div>
+
+  <div class="modal" id="premiumModal">
+    <div class="modalHeader">
+      <h2>💎 Премиум</h2>
+      <button class="closeBtn" onclick="closeModal('premiumModal')">✖</button>
+    </div>
+    <div class="items" id="premiumItems"></div>
+  </div>
+
+  <div class="modal" id="profileModal">
+    <div class="modalHeader">
+      <h2>👥 Профили</h2>
+      <button class="closeBtn" onclick="closeModal('profileModal')">✖</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:10px;">
+      <input type="text" id="newProfileName" class="textInput" placeholder="Имя профиля..." maxlength="16" style="margin-bottom:0;flex:1;">
+      <button class="buyBtn" style="min-height:42px;padding:12px 18px;font-size:13px;width:auto;" onclick="createProfile()">➕</button>
+    </div>
+    <div class="items" id="profileItems"></div>
+    <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;">
+      <button class="buyBtn purple" style="padding:9px 14px;font-size:12px;min-height:38px;width:auto;" onclick="exportCurrentProfile()">📤 Экспорт</button>
+      <button class="buyBtn purple" style="padding:9px 14px;font-size:12px;min-height:38px;width:auto;" onclick="openImportDialog()">📥 Импорт</button>
+    </div>
+  </div>
+
+  <div class="modal" id="exportModal">
+    <div class="modalHeader">
+      <h2>📤 Экспорт</h2>
+      <button class="closeBtn" onclick="closeModal('exportModal')">✖</button>
+    </div>
+    <textarea id="exportText" class="textArea" readonly onclick="this.select()"></textarea>
+    <button class="buyBtn" style="width:100%;padding:12px;font-size:14px;" onclick="copyExport()">📋 Скопировать</button>
+  </div>
+
+  <div class="modal" id="importModal">
+    <div class="modalHeader">
+      <h2>📥 Импорт</h2>
+      <button class="closeBtn" onclick="closeModal('importModal')">✖</button>
+    </div>
+    <textarea id="importText" class="textArea" placeholder="Вставь код..."></textarea>
+    <button class="buyBtn" style="width:100%;padding:12px;font-size:14px;" onclick="doImportProfile()">📥 Импортировать</button>
+  </div>
+</div>
+
+<script>
+// АВТО-ПОВОРОТ
+function checkAutoRotate() {
+  const p = window.innerHeight > window.innerWidth;
+  document.body.classList.toggle('autoRotate', p);
+  setTimeout(resize, 50);
+  setTimeout(resize, 200);
+}
+window.addEventListener('resize', checkAutoRotate);
+window.addEventListener('orientationchange', () => {
+  setTimeout(checkAutoRotate, 100);
+  setTimeout(checkAutoRotate, 400);
+});
+
+// ДАННЫЕ
+const RODS = [
+  { id:'stick', name:'Палка', price:0, power:1.0, desc:'Палка с ниткой.' },
+  { id:'wood', name:'Старая удочка', price:250, power:1.3, desc:'Начальная.' },
+  { id:'fiber', name:'Стеклопластик', price:1000, power:1.6, desc:'+60% к силе.' },
+  { id:'carbon', name:'Карбоновая', price:4000, power:2.0, desc:'Лёгкая.' },
+  { id:'titan', name:'Титановая', price:15000, power:2.5, desc:'Прочная.' },
+  { id:'ice', name:'Ледяная', price:40000, power:2.9, desc:'Морозит.' },
+  { id:'myth', name:'Мифическая', price:75000, power:3.3, desc:'Ловит всё.' },
+  { id:'volcano', name:'Вулканическая', price:175000, power:3.8, desc:'Мощь.' },
+  { id:'dragon', name:'Драконья', price:300000, power:4.4, desc:'Имба!' },
+  { id:'moon', name:'Лунная', price:600000, power:5.0, desc:'Свет Луны.' },
+  { id:'ghost', name:'Призрачная', price:1250000, power:5.7, desc:'Невидимая.' },
+  { id:'cosmic', name:'Космическая', price:2500000, power:6.5, desc:'Метеорит.' },
+  { id:'rainbow', name:'Радужная', price:4000000, power:7.5, desc:'Цветами!' },
+  { id:'plasma', name:'Плазменная', price:7500000, power:8.5, desc:'Плазма.' },
+  { id:'diamond', name:'Алмазная', price:15000000, power:9.5, desc:'Твёрже всех!' },
+  { id:'phantom', name:'Фантомная', price:25000000, power:10.5, desc:'Другой мир.' },
+  { id:'quantum', name:'Квантовая', price:40000000, power:11.5, desc:'Реальность.' },
+  { id:'god', name:'Удочка Богов', price:75000000, power:13.0, desc:'Легендарная.' },
+  { id:'angel', name:'Ангельская', price:125000000, power:14.5, desc:'Небесная.' },
+  { id:'demon', name:'Демоническая', price:200000000, power:16.0, desc:'Огонь.' },
+  { id:'eternal', name:'Вечная', price:350000000, power:18.0, desc:'Вне времени.' },
+  { id:'infinity', name:'Бесконечная', price:500000000, power:20.0, desc:'∞!' },
+  { id:'omega', name:'Ω Удочка', price:750000000, power:22.5, desc:'АБСОЛЮТ!' },
+  { id:'alpha', name:'α Удочка', price:1000000000, power:25.0, desc:'Начало.' },
+  { id:'delta', name:'Δ Удочка', price:1300000000, power:28.0, desc:'Судьба.' },
+  { id:'sigma', name:'Σ Удочка', price:1600000000, power:31.0, desc:'Сумма.' },
+  { id:'nexus', name:'Нексус-удочка', price:1900000000, power:34.0, desc:'Миры.' },
+  { id:'void', name:'Пустотная', price:2200000000, power:37.0, desc:'Пустота.' },
+  { id:'celestial', name:'Небесная', price:2500000000, power:40.0, desc:'Звёзды.' },
+  { id:'primordial', name:'Первородная', price:3000000000, power:44.0, desc:'Начало.' },
+  { id:'chaos', name:'Хаос-удочка', price:3500000000, power:48.0, desc:'Хаос.' },
+  { id:'titan', name:'ТИТАН-удочка', price:5000000000, power:65.0, desc:'ИМБА!' },
+];
+
+const BAITS = [
+  { id:'hands', name:'Руки', price:0, bonus:0.6, rare:0.00, desc:'Руками.' },
+  { id:'worm', name:'Червяк', price:50, bonus:1.0, rare:0.05, desc:'Стандарт.' },
+  { id:'corn', name:'Кукуруза', price:120, bonus:1.15, rare:0.10, desc:'+15% клёв.' },
+  { id:'bread', name:'Хлеб', price:200, bonus:1.2, rare:0.12, desc:'Мякиш.' },
+  { id:'spoon', name:'Блесна', price:350, bonus:1.3, rare:0.20, desc:'Хищники.' },
+  { id:'cheese', name:'Сыр', price:500, bonus:1.35, rare:0.22, desc:'Пахучий.' },
+  { id:'live', name:'Живец', price:800, bonus:1.5, rare:0.30, desc:'Крупная.' },
+  { id:'shrimp', name:'Креветка', price:1300, bonus:1.6, rare:0.35, desc:'Деликатес.' },
+  { id:'leech', name:'Пиявка', price:2000, bonus:1.7, rare:0.40, desc:'Кровосос.' },
+  { id:'squid', name:'Кальмар', price:3000, bonus:1.9, rare:0.50, desc:'Морской.' },
+  { id:'gold', name:'Золотая приманка', price:5000, bonus:2.1, rare:0.55, desc:'Легенды!' },
+  { id:'octopus', name:'Осьминог', price:9000, bonus:2.4, rare:0.65, desc:'Мощный.' },
+  { id:'dragon', name:'Драконья', price:20000, bonus:2.8, rare:0.75, desc:'Боссы.' },
+  { id:'magma', name:'Магмовый червь', price:40000, bonus:3.2, rare:0.85, desc:'Раскалённый.' },
+  { id:'god', name:'Слеза Бога', price:100000, bonus:4.0, rare:1.00, desc:'100% редкая!' },
+  { id:'crystal', name:'Кристальная', price:200000, bonus:4.5, rare:1.10, desc:'Сияние.' },
+  { id:'star', name:'Звёздная пыль', price:400000, bonus:5.0, rare:1.20, desc:'Космос.' },
+  { id:'voidbait', name:'Пустотная', price:750000, bonus:5.5, rare:1.30, desc:'Из ниоткуда.' },
+  { id:'quantum', name:'Квантовая', price:1500000, bonus:6.0, rare:1.45, desc:'Суперпозиция.' },
+  { id:'angelbait', name:'Слёзы ангела', price:3000000, bonus:6.5, rare:1.60, desc:'Святая.' },
+  { id:'demonbait', name:'Кровь демона', price:5000000, bonus:7.0, rare:1.75, desc:'Адская.' },
+  { id:'eternal', name:'Эликсир вечности', price:10000000, bonus:7.5, rare:1.90, desc:'Вне времени.' },
+  { id:'infinity', name:'∞ Приманка', price:20000000, bonus:8.0, rare:2.10, desc:'Бесконечная.' },
+  { id:'omega', name:'Ω Наживка', price:40000000, bonus:9.0, rare:2.30, desc:'Финальная.' },
+  { id:'alpha', name:'α Наживка', price:75000000, bonus:10.0, rare:2.50, desc:'Первичная.' },
+  { id:'chaos', name:'Хаос-наживка', price:150000000, bonus:11.0, rare:2.75, desc:'Хаос.' },
+  { id:'genesis', name:'Генезис-наживка', price:250000000, bonus:12.5, rare:3.00, desc:'Создание.' },
+  { id:'apoc', name:'Апокалипсис', price:350000000, bonus:14.0, rare:3.25, desc:'Конец.' },
+  { id:'titan', name:'ТИТАН-наживка', price:500000000, bonus:16.0, rare:3.50, desc:'ИМБА!' },
+  { id:'creator', name:'Сущность Творца', price:1000000000, bonus:20.0, rare:5.00, desc:'АБСОЛЮТ!' },
+];
+
+const UPGRADES = [
+  { id:'line', name:'Крепкая леска', price:15000, desc:'+20% к натяжению.' },
+  { id:'auto', name:'Автоподсечка', price:25000, desc:'Сама подсекает.' },
+  { id:'lucky', name:'Рыбацкая удача', price:40000, desc:'+15% редкой.' },
+  { id:'radar', name:'Радар рыбы', price:75000, desc:'Видно редкость.' },
+  { id:'multi', name:'Двойной улов', price:125000, desc:'15% шанс 2 рыбы.' },
+  { id:'goldhands', name:'Золотые руки', price:200000, desc:'+15% силы.' },
+  { id:'magnet', name:'Магнит для рыбы', price:300000, desc:'+10% клёв.' },
+  { id:'tourney', name:'Турнирный билет', price:400000, desc:'+25% к цене.' },
+  { id:'master', name:'Мастер-удочка', price:600000, desc:'+20% силы.' },
+  { id:'boss', name:'Босс-хантер', price:900000, desc:'+30% боссы.' },
+  { id:'night', name:'Ночной охотник', price:1250000, desc:'+20% ночью.' },
+  { id:'echo', name:'Эхо-локатор', price:1750000, desc:'+25% клёв.' },
+  { id:'x2money', name:'x2 Деньги', price:2500000, desc:'Всё х2!' },
+  { id:'x3xp', name:'x3 Опыт', price:4000000, desc:'Опыт x3.' },
+];
+
+const BOBBERS = [
+  { id:'red', name:'Красный', price:0, color:'#e74c3c', desc:'Классика.' },
+  { id:'yellow', name:'Жёлтый', price:2500, color:'#f1c40f', desc:'Яркий.' },
+  { id:'green', name:'Зелёный', price:7500, color:'#2ecc71', desc:'Спокойный.' },
+  { id:'blue', name:'Синий', price:15000, color:'#3498db', desc:'Морской.' },
+  { id:'purple', name:'Фиолетовый', price:30000, color:'#9b59b6', desc:'+5% редкой.' },
+  { id:'gold', name:'Золотой', price:60000, color:'#f1c40f', desc:'+10% цены.' },
+  { id:'neon', name:'Неоновый', price:125000, color:'#2ecc71', desc:'+15% цены.' },
+  { id:'ruby', name:'Рубиновый', price:250000, color:'#c0392b', desc:'+20% цены.' },
+  { id:'diamond', name:'Алмазный', price:500000, color:'#aee6ff', desc:'+30% цены.' },
+  { id:'cosmic', name:'Космический', price:1500000, color:'#8e44ad', desc:'+40% цены.' },
+  { id:'rainbow', name:'Радужный', price:4000000, color:'#ff69b4', desc:'+50% цены!' },
+  { id:'god', name:'Божественный', price:15000000, color:'#ffffff', desc:'+100% цены!' },
+];
+
+const ISLANDS = [
+  { id:0, name:'Тихая бухта', unlock:0, mult:1.0, rarity:0.00, boss:'Царь-окунь', fishes:['Пескарь','Окунь','Плотва','Карась','Краснопёрка'] },
+  { id:1, name:'Песчаный пляж', unlock:500, mult:1.15, rarity:0.05, boss:'Королевский лещ', fishes:['Голавль','Лещ','Линь','Жерех','Сопач'] },
+  { id:2, name:'Скалы Чайки', unlock:2500, mult:1.3, rarity:0.10, boss:'Скальный судак', fishes:['Судак','Форель','Хариус','Налим','Щука'] },
+  { id:3, name:'Туманный мыс', unlock:7500, mult:1.5, rarity:0.15, boss:'Призрачный сом', fishes:['Сом','Угорь','Ряпушка','Корюшка','Минога'] },
+  { id:4, name:'Коралловый риф', unlock:17500, mult:1.75, rarity:0.22, boss:'Коралловая мурена', fishes:['Мурена','Барабуля','Ставрида','Кефаль','Луфарь'] },
+  { id:5, name:'Грозовой остров', unlock:40000, mult:2.0, rarity:0.30, boss:'Громовой угорь', fishes:['Электро-сом','Скат','Удильщик','Морской чёрт','Рыба-гитара'] },
+  { id:6, name:'Ледяные фьорды', unlock:75000, mult:2.3, rarity:0.38, boss:'Ледяной тунец', fishes:['Палтус','Треска','Пикша','Зубатка','Камбала'] },
+  { id:7, name:'Вулкан Краг', unlock:150000, mult:2.6, rarity:0.45, boss:'Магмовый краб', fishes:['Осётр','Белуга','Севрюга','Стерлядь','Веслонос'] },
+  { id:8, name:'Затонувший город', unlock:300000, mult:3.0, rarity:0.52, boss:'Городской осётр', fishes:['Рыба-меч','Марлин','Парусник','Копьеносец','Меч-рыба'] },
+  { id:9, name:'Проклятый маяк', unlock:600000, mult:3.5, rarity:0.60, boss:'Проклятый кракен', fishes:['Пиранья','Мурена-гигант','Барракуда','Анаконда','Лакедра'] },
+  { id:10, name:'Драконьи воды', unlock:1250000, mult:4.0, rarity:0.68, boss:'Морской дракон', fishes:['Рыба-молот','Тигровая акула','Бычья акула','Китовая акула','Сельдевая'] },
+  { id:11, name:'Лунное озеро', unlock:2500000, mult:4.6, rarity:0.75, boss:'Лунная рыба', fishes:['Тунец','Жёлтопёр','Бонито','Скипджек','Альбакор'] },
+  { id:12, name:'Бездна', unlock:5000000, mult:5.5, rarity:0.82, boss:'Левиафан', fishes:['Белая акула','Мако','Тигровая','Акула-бык','Голубая'] },
+  { id:13, name:'Райские острова', unlock:12500000, mult:6.8, rarity:0.90, boss:'Золотой кит', fishes:['Кракен','Гигантский кальмар','Колоссальный','Адский','Осьминог'] },
+  { id:14, name:'Остров Богов', unlock:25000000, mult:8.0, rarity:1.00, boss:'Вселенская рыбка', fishes:['Мегалодон','Дунклеостей','Ксифактин','Геликоприон','Лиоплевродон'] },
+  { id:15, name:'Звёздный архипелаг', unlock:50000000, mult:9.5, rarity:1.10, boss:'Звёздный дракон', fishes:['Морской дракон','Лунная рыба','Солнечная','Звёздный угорь','Комета'] },
+  { id:16, name:'Пустотный мир', unlock:100000000, mult:11.0, rarity:1.25, boss:'Пустотный кракен', fishes:['Пустотная рыба','Тёмная материя','Антивещество','Чёрная дыра','Сингулярность'] },
+  { id:17, name:'Квантовые воды', unlock:200000000, mult:13.0, rarity:1.40, boss:'Квантовый левиафан', fishes:['Квантовая рыба','Запутанная','Суперпозиция','Волновая','Фотон'] },
+  { id:18, name:'Ангельские кущи', unlock:350000000, mult:15.5, rarity:1.55, boss:'Ангел-рыба', fishes:['Ангельская','Серафим','Херувим','Архангел','Небожитель'] },
+  { id:19, name:'Адское пекло', unlock:600000000, mult:18.0, rarity:1.70, boss:'Адский кит', fishes:['Демоническая','Дьявол-рыба','Люцифер','Вельзевул','Сатана'] },
+  { id:20, name:'Вечный океан', unlock:900000000, mult:21.0, rarity:1.85, boss:'Вечный дракон', fishes:['Вечная рыба','Хронос','Эон','Бессмертный','Timeless'] },
+  { id:21, name:'Бесконечность', unlock:1400000000, mult:25.0, rarity:2.00, boss:'∞ Рыба', fishes:['∞ Рыба','Бесконечная','Бездна','Вечность','Всегда'] },
+  { id:22, name:'Остров Ω', unlock:2000000000, mult:30.0, rarity:2.20, boss:'Ω Левиафан', fishes:['Ω Рыба','Альфа-Омега','Омега-рыба','Финальная','Последняя'] },
+  { id:23, name:'Остров α', unlock:2750000000, mult:36.0, rarity:2.40, boss:'α Дракон', fishes:['α Рыба','Первая рыба','Начало','Генезис','Изначальная'] },
+  { id:24, name:'Хаос-остров', unlock:3750000000, mult:43.0, rarity:2.65, boss:'Хаос-бог', fishes:['Хаос-рыба','Случайная','Непредсказуемая','Безумная','Анархия'] },
+  { id:25, name:'Остров Генезис', unlock:5000000000, mult:52.0, rarity:2.90, boss:'Генезис', fishes:['Генезис-рыба','Творение','Создание','Первородная','Изначальная'] },
+  { id:26, name:'Апокалипсис', unlock:7500000000, mult:63.0, rarity:3.20, boss:'Апокалиптический', fishes:['Апокалиптическая','Армагеддон','Судный день','Погибель','Конец'] },
+  { id:27, name:'ТИТАН-остров', unlock:11000000000, mult:77.0, rarity:3.50, boss:'ТИТАН', fishes:['ТИТАН-рыба','Гигант','Колосс','Лефиафан+','Титаническая'] },
+  { id:28, name:'Мультивселенная', unlock:15000000000, mult:95.0, rarity:3.80, boss:'Мультивселенский', fishes:['Мультивселенская','Параллельная','Измерение X','Реальность','Система'] },
+  { id:29, name:'🌌 ФИНАЛ', unlock:25000000000, mult:150.0, rarity:5.00, boss:'Создатель Вселенной', fishes:['Создатель','Вселенная','Пустота','Начало','Конец'] },
+];
+
+const TIER_PRICES = [
+  [3,5,7,10,13], [15,20,25,30,40], [55,75,95,120,150], [180,220,270,320,400],
+  [450,550,700,900,1200], [1400,1800,2200,2800,3500], [4000,5000,6500,8000,10000],
+  [12000,15000,19000,24000,30000], [35000,45000,55000,70000,90000],
+  [100000,130000,165000,210000,270000], [330000,420000,530000,670000,850000],
+  [1000000,1300000,1650000,2100000,2700000], [3300000,4200000,5300000,6700000,8500000],
+  [10000000,13000000,16500000,21000000,27000000], [33000000,42000000,53000000,67000000,85000000],
+  [100000000,130000000,165000000,210000000,270000000], [330000000,420000000,530000000,670000000,850000000],
+  [1000000000,1300000000,1650000000,2100000000,2700000000], [3300000000,4200000000,5300000000,6700000000,8500000000],
+  [10000000000,13000000000,16500000000,21000000000,27000000000], [33000000000,42000000000,53000000000,67000000000,85000000000],
+  [100000000000,130000000000,165000000000,210000000000,270000000000], [330000000000,420000000000,530000000000,670000000000,850000000000],
+  [1000000000000,1300000000000,1650000000000,2100000000000,2700000000000], [3300000000000,4200000000000,5300000000000,6700000000000,8500000000000],
+  [10000000000000,13000000000000,16500000000000,21000000000000,27000000000000], [33000000000000,42000000000000,53000000000000,67000000000000,85000000000000],
+  [100000000000000,130000000000000,165000000000000,210000000000000,270000000000000], [330000000000000,420000000000000,530000000000000,670000000000000,850000000000000],
+  [1000000000000000,1300000000000000,1650000000000000,2100000000000000,2700000000000000],
+];
+
+const RARITIES = ['common','uncommon','rare','epic','legendary'];
+
+const FISH = [];
+ISLANDS.forEach((island, idx) => {
+  const prices = TIER_PRICES[idx] || TIER_PRICES[TIER_PRICES.length-1];
+  island.fishes.forEach((fishName, i) => {
+    FISH.push({
+      name: fishName,
+      price: prices[Math.min(i,4)],
+      weight: Math.max(0.5, (i+1) * (idx+1) * 0.3),
+      rarity: RARITIES[Math.min(i,4)],
+      islandId: idx,
+      islandName: island.name,
+    });
+  });
+  FISH.push({
+    name: `👑 ${island.boss}`,
+    price: Math.floor(prices[4] * 5),
+    weight: Math.max(50, idx * 100 + 100),
+    rarity: 'boss',
+    islandId: idx,
+    islandName: island.name,
+    isBoss: true,
+  });
+});
+
+const ACHIEVEMENTS = [
+  { id:'first', name:'Первая рыбка', desc:'Поймать первую рыбу', reward:50 },
+  { id:'ten', name:'Юный рыбак', desc:'10 рыб', reward:200 },
+  { id:'hundred', name:'Опытный', desc:'100 рыб', reward:2000 },
+  { id:'thousand', name:'Мастер', desc:'1000 рыб', reward:20000 },
+  { id:'tenthousand', name:'Гуру', desc:'10 000 рыб', reward:100000 },
+  { id:'rich', name:'Богач', desc:'Заработать 50 000', reward:500 },
+  { id:'richer', name:'Миллионер', desc:'Заработать 5 млн', reward:25000 },
+  { id:'billionaire', name:'Миллиардер', desc:'Заработать 5 млрд', reward:25000000 },
+  { id:'legend', name:'Легендарный', desc:'Легендарная рыба', reward:1000 },
+  { id:'myth', name:'Мифический', desc:'Мифическая рыба', reward:5000 },
+  { id:'boss1', name:'Первый босс', desc:'Победить босса', reward:1000 },
+  { id:'boss10', name:'Охотник', desc:'10 боссов', reward:50000 },
+  { id:'bossall', name:'Легенда морей', desc:'Все 30 боссов', reward:50000000 },
+  { id:'isl5', name:'Путешественник', desc:'5 островов', reward:2000 },
+  { id:'isl10', name:'Исследователь', desc:'10 островов', reward:20000 },
+  { id:'islall', name:'Вселенная', desc:'Все 30 островов', reward:10000000 },
+  { id:'coll10', name:'Коллекционер', desc:'10 видов', reward:5000 },
+  { id:'coll50', name:'Зоолог', desc:'50 видов', reward:100000 },
+  { id:'collall', name:'Энциклопедия', desc:'Все виды', reward:10000000 },
+];
+
+const QUESTS = [
+  { id:'q1', name:'Первые шаги', desc:'Поймать 5 рыб', target:5, type:'caught', reward:200 },
+  { id:'q2', name:'Начинающий', desc:'20 рыб', target:20, type:'caught', reward:1000 },
+  { id:'q3', name:'Стажёр', desc:'50 рыб', target:50, type:'caught', reward:3000 },
+  { id:'q4', name:'Опытный', desc:'200 рыб', target:200, type:'caught', reward:15000 },
+  { id:'q5', name:'Профессионал', desc:'500 рыб', target:500, type:'caught', reward:50000 },
+  { id:'q6', name:'Мастер', desc:'1000 рыб', target:1000, type:'caught', reward:150000 },
+  { id:'q7', name:'Гуру', desc:'5000 рыб', target:5000, type:'caught', reward:1000000 },
+  { id:'q8', name:'Легенда', desc:'10000 рыб', target:10000, type:'caught', reward:10000000 },
+  { id:'q9', name:'Боссолов', desc:'3 босса', target:3, type:'bosses', reward:5000 },
+  { id:'q10', name:'Охотник', desc:'10 боссов', target:10, type:'bosses', reward:50000 },
+  { id:'q11', name:'Истребитель', desc:'20 боссов', target:20, type:'bosses', reward:1000000 },
+  { id:'q12', name:'Коллекционер', desc:'15 видов', target:15, type:'species', reward:10000 },
+  { id:'q13', name:'Зоолог', desc:'40 видов', target:40, type:'species', reward:200000 },
+  { id:'q14', name:'Ихтиолог', desc:'80 видов', target:80, type:'species', reward:5000000 },
+  { id:'q15', name:'Энциклопедист', desc:'130 видов', target:130, type:'species', reward:100000000 },
+  { id:'q16', name:'Путешественник', desc:'5 островов', target:5, type:'islands', reward:5000 },
+  { id:'q17', name:'Исследователь', desc:'15 островов', target:15, type:'islands', reward:500000 },
+  { id:'q18', name:'Покоритель', desc:'25 островов', target:25, type:'islands', reward:50000000 },
+  { id:'q19', name:'Богач', desc:'Заработать 1 млн', target:1000000, type:'earned', reward:100000 },
+  { id:'q20', name:'Магнат', desc:'Заработать 1 млрд', target:1000000000, type:'earned', reward:100000000 },
+];
+
+const PROFILES_KEY = 'fish_profiles_v3';
+const CURRENT_KEY = 'fish_current_v3';
+const SAVE_PREFIX = 'fish_save_v3_';
+
+const defaultState = {
+  money:0, level:1, xp:0, xpNeeded:100,
+  island:0, rodId:'stick', baitId:'hands', baitUses:Infinity, bobberId:'red',
+  ownedRods:['stick'], ownedBobbers:['red'], unlockedIslands:[0],
+  upgrades:{}, inventory:[], caught:{}, totalCaught:0, totalEarned:0,
+  achievements:{}, bossesDefeated:{}, quests:{}, lastDaily:0, soundOn:true, tutorialShown:false,
+  bestFish:null, bestWeight:0, baitStock:{},
+};
+
+function getProfiles() { try { return JSON.parse(localStorage.getItem(PROFILES_KEY) || '[]'); } catch(e) { return []; } }
+function saveProfiles(p) { try { localStorage.setItem(PROFILES_KEY, JSON.stringify(p)); } catch(e) {} }
+function getCurrentId() {
+  let id = localStorage.getItem(CURRENT_KEY);
+  if (!id) {
+    id = 'p' + Date.now();
+    const p = getProfiles();
+    p.push({ id, name: 'Профиль 1', created: Date.now() });
+    saveProfiles(p);
+    localStorage.setItem(CURRENT_KEY, id);
+  }
+  return id;
+}
+function loadState(id) { try { const r = localStorage.getItem(SAVE_PREFIX + id); if (r) return JSON.parse(r); } catch(e) {} return null; }
+function saveStateForProfile(id, s) { try { localStorage.setItem(SAVE_PREFIX + id, JSON.stringify(s)); } catch(e) {} }
+
+let CURRENT_PROFILE = null;
+let S = null;
+
+function initProfiles() {
+  CURRENT_PROFILE = getCurrentId();
+  let data = loadState(CURRENT_PROFILE);
+  S = data ? {...defaultState, ...data} : {...defaultState};
+  if (!S.ownedRods) S.ownedRods = ['stick'];
+  if (!S.ownedBobbers) S.ownedBobbers = ['red'];
+  if (!S.unlockedIslands) S.unlockedIslands = [0];
+  if (!S.upgrades) S.upgrades = {};
+  if (!S.inventory) S.inventory = [];
+  if (!S.caught) S.caught = {};
+  if (!S.achievements) S.achievements = {};
+  if (!S.bossesDefeated) S.bossesDefeated = {};
+  if (!S.quests) S.quests = {};
+  if (!S.baitStock) S.baitStock = {};
+  if (S.baitId === 'hands') S.baitUses = Infinity;
+}
+
+function switchProfile(id) {
+  save();
+  localStorage.setItem(CURRENT_KEY, id);
+  CURRENT_PROFILE = id;
+  initProfiles();
+  updateHUD();
+  renderProfiles();
+  toast('👤 Профиль переключён');
+}
+
+function createProfile() {
+  const inp = document.getElementById('newProfileName');
+  const name = (inp.value || '').trim() || ('Профиль ' + (getProfiles().length + 1));
+  const id = 'p' + Date.now();
+  const p = getProfiles();
+  p.push({ id, name, created: Date.now() });
+  saveProfiles(p);
+  saveStateForProfile(id, {...defaultState});
+  inp.value = '';
+  switchProfile(id);
+  toast('✅ Создан: ' + name);
+}
+
+function deleteProfile(id) {
+  const p = getProfiles();
+  if (p.length <= 1) { toast('❌ Нельзя удалить последний'); return; }
+  if (!confirm('Удалить профиль?')) return;
+  const idx = p.findIndex(x => x.id === id);
+  if (idx === -1) return;
+  p.splice(idx, 1);
+  saveProfiles(p);
+  try { localStorage.removeItem(SAVE_PREFIX + id); } catch(e) {}
+  if (CURRENT_PROFILE === id) switchProfile(p[0].id);
+  else renderProfiles();
+}
+
+function renderProfiles() {
+  const c = document.getElementById('profileItems');
+  if (!c) return;
+  c.innerHTML = '';
+  getProfiles().forEach(p => {
+    const st = loadState(p.id) || defaultState;
+    const isCur = p.id === CURRENT_PROFILE;
+    const div = document.createElement('div');
+    div.className = 'profileBox' + (isCur ? ' current' : '');
+    div.innerHTML = `
+      <div class="pname">${p.name}${isCur ? ' 👈' : ''}</div>
+      <div class="pinfo">
+        <span>💰 ${Math.floor(st.money || 0).toLocaleString()}</span>
+        <span>⭐ ${st.level || 1}</span>
+        <span>🐟 ${st.totalCaught || 0}</span>
+        <span>🏝️ ${(st.unlockedIslands || [1]).length}/30</span>
+      </div>`;
+    const w = document.createElement('div');
+    w.style.display = 'flex';
+    w.style.gap = '6px';
+    w.style.marginTop = '4px';
+    if (!isCur) {
+      const b1 = document.createElement('button');
+      b1.className = 'buyBtn wear';
+      b1.textContent = '▶ ВОЙТИ';
+      b1.onclick = () => switchProfile(p.id);
+      w.appendChild(b1);
+      const b2 = document.createElement('button');
+      b2.className = 'buyBtn danger';
+      b2.style.flex = '0';
+      b2.style.width = 'auto';
+      b2.style.padding = '9px 12px';
+      b2.textContent = '🗑';
+      b2.onclick = () => deleteProfile(p.id);
+      w.appendChild(b2);
+    } else {
+      const b = document.createElement('button');
+      b.className = 'buyBtn equipped';
+      b.textContent = '✅ АКТИВНЫЙ';
+      b.disabled = true;
+      w.appendChild(b);
+    }
+    div.appendChild(w);
+    c.appendChild(div);
+  });
+}
+
+function save() { if (S && CURRENT_PROFILE) saveStateForProfile(CURRENT_PROFILE, S); }
+setInterval(save, 5000);
+document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+
+function encode(obj) { try { return btoa(unescape(encodeURIComponent(JSON.stringify(obj)))); } catch(e) { return ''; } }
+function decode(str) { try { return JSON.parse(decodeURIComponent(escape(atob(str.trim())))); } catch(e) { return null; } }
+
+function exportCurrentProfile() {
+  if (!S) return;
+  const prof = getProfiles().find(p => p.id === CURRENT_PROFILE);
+  const data = { v:1, name: prof ? prof.name : 'Профиль', state: S };
+  document.getElementById('exportText').value = encode(data);
+  openModal('exportModal');
+}
+function openImportDialog() { document.getElementById('importText').value = ''; openModal('importModal'); }
+function copyExport() {
+  const t = document.getElementById('exportText');
+  t.select();
+  try { document.execCommand('copy'); toast('📋 Скопировано'); }
+  catch(e) { if (navigator.clipboard) navigator.clipboard.writeText(t.value).then(() => toast('📋 Скопировано')); }
+}
+function doImportProfile() {
+  const raw = document.getElementById('importText').value.trim();
+  if (!raw) return toast('❌ Пусто');
+  const data = decode(raw);
+  if (!data || !data.state) return toast('❌ Неверный код');
+  if (!confirm('Импортировать? Текущий прогресс перезапишется')) return;
+  S = {...defaultState, ...data.state};
+  if (!S.baitStock) S.baitStock = {};
+  save();
+  closeModal('importModal');
+  updateHUD();
+  toast('✅ Импортировано');
+}
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  if (!cv) return;
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = cv.clientWidth; H = cv.clientHeight;
+  if (W === 0 || H === 0) return;
+  cv.width = W * DPR; cv.height = H * DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize', resize);
+
+let actx = null;
+function initAudio() { if (!actx) try { actx = new (window.AudioContext||window.webkitAudioContext)(); } catch(e){} }
+function beep(f, dur, type='sine', vol=0.08) {
+  if (!S || !S.soundOn || !actx) return;
+  try {
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(vol, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(); o.stop(actx.currentTime + dur);
+  } catch(e){}
+}
+function sfxCast() { beep(400,0.15); }
+function sfxBite() { beep(800,0.1,'square',0.12); }
+function sfxCatch() { [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.15,'sine',0.1), i*70)); }
+function sfxMiss() { beep(200,0.3,'sawtooth',0.08); }
+function sfxCoin() { beep(1200,0.06,'square',0.06); }
+function sfxLevelUp() { [523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>beep(f,0.2,'triangle',0.12), i*100)); }
+function sfxSnap() { beep(150,0.4,'sawtooth',0.15); }
+
+function toggleSound() {
+  S.soundOn = !S.soundOn;
+  document.getElementById('soundBtn').textContent = S.soundOn ? '🔊' : '🔇';
+  save();
+}
+
+const WEATHERS = [
+  { id:'clear', name:'Ясно', biteMult:1.0, weight:0.4 },
+  { id:'cloudy', name:'Облачно', biteMult:1.1, weight:0.25 },
+  { id:'rain', name:'Дождь', biteMult:1.25, weight:0.2 },
+  { id:'storm', name:'Гроза', biteMult:1.5, weight:0.1 },
+  { id:'fog', name:'Туман', biteMult:1.15, weight:0.05 },
+];
+let currentWeather = WEATHERS[0];
+let weatherTimer = 0, dayTime = 0.3;
+function updateWeather(dt) {
+  weatherTimer -= dt;
+  if (weatherTimer <= 0) {
+    const r = Math.random();
+    let acc = 0;
+    for (const w of WEATHERS) { acc += w.weight; if (r <= acc) { currentWeather = w; break; } }
+    weatherTimer = 30 + Math.random() * 40;
+    document.getElementById('weather').textContent = currentWeather.name;
+  }
+  dayTime = (dayTime + dt / 300) % 1;
+}
+function isNight() { return dayTime < 0.2 || dayTime > 0.8; }
+function getIsland() { return ISLANDS[S.island]; }
+
+let clouds = [];
+for (let i = 0; i < 6; i++) clouds.push({ x: Math.random()*100, y: 8 + Math.random()*25, s: 0.5 + Math.random()*0.8, sp: 0.2 + Math.random()*0.4 });
+
+function draw() {
+  if (W === 0 || H === 0 || !S) return;
+  const t = performance.now() / 1000;
+  const night = isNight();
+
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.6);
+  if (night) {
+    skyGrad.addColorStop(0, '#0a0a2e');
+    skyGrad.addColorStop(0.5, '#1a1a4e');
+    skyGrad.addColorStop(1, '#2a1a3e');
+  } else {
+    skyGrad.addColorStop(0, '#4a90d9');
+    skyGrad.addColorStop(0.4, '#87ceeb');
+    skyGrad.addColorStop(0.8, '#b8e0f0');
+    skyGrad.addColorStop(1, '#f0d8a8');
+  }
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, H * 0.6);
+
+  const sunX = W * (0.1 + dayTime * 0.8);
+  const sunY = H * 0.6 - Math.sin(dayTime * Math.PI) * H * 0.45;
+  const sunSize = H * 0.05;
+
+  const glow = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunSize * 4);
+  if (night) {
+    glow.addColorStop(0, 'rgba(220,220,255,0.7)');
+    glow.addColorStop(1, 'rgba(220,220,255,0)');
+  } else {
+    glow.addColorStop(0, 'rgba(255,240,150,0.9)');
+    glow.addColorStop(0.4, 'rgba(255,220,100,0.3)');
+    glow.addColorStop(1, 'rgba(255,200,80,0)');
+  }
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(sunX, sunY, sunSize * 4, 0, Math.PI * 2); ctx.fill();
+
+  ctx.fillStyle = night ? '#f0f0ff' : '#fff8d0';
+  ctx.beginPath(); ctx.arc(sunX, sunY, sunSize, 0, Math.PI * 2); ctx.fill();
+
+  if (night) {
+    for (let i = 0; i < 50; i++) {
+      const sx = (i * 137.5) % W, sy = (i * 73.3) % (H * 0.5);
+      const tw = Math.sin(t * 2 + i) * 0.4 + 0.6;
+      ctx.fillStyle = `rgba(255,255,255,${tw})`;
+      ctx.fillRect(sx, sy, 2, 2);
+    }
+  }
+
+  const cloudAlpha = night ? 0.2 : (currentWeather.id === 'storm' ? 0.7 : 0.55);
+  const cloudColor = night ? `rgba(80,80,120,${cloudAlpha})` : (currentWeather.id === 'storm' ? `rgba(70,70,90,${cloudAlpha})` : `rgba(255,255,255,${cloudAlpha})`);
+  clouds.forEach(c => {
+    c.x += c.sp * 0.05;
+    if (c.x > 110) c.x = -20;
+    const cx = (c.x / 100) * W;
+    const cy = (c.y / 100) * H * 0.5;
+    const cs = c.s * H * 0.05;
+    ctx.fillStyle = cloudColor;
+    ctx.beginPath();
+    ctx.arc(cx, cy, cs * 0.8, 0, Math.PI * 2);
+    ctx.arc(cx + cs * 0.9, cy - cs * 0.2, cs * 1.1, 0, Math.PI * 2);
+    ctx.arc(cx + cs * 1.8, cy, cs * 0.9, 0, Math.PI * 2);
+    ctx.arc(cx + cs * 0.9, cy + cs * 0.3, cs * 0.7, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  ctx.fillStyle = night ? '#0a1a2a' : 'rgba(30,80,120,0.5)';
+  ctx.beginPath();
+  ctx.moveTo(0, H * 0.6);
+  ctx.lineTo(W * 0.15, H * 0.55);
+  ctx.lineTo(W * 0.3, H * 0.57);
+  ctx.lineTo(W * 0.5, H * 0.53);
+  ctx.lineTo(W * 0.7, H * 0.56);
+  ctx.lineTo(W * 0.85, H * 0.54);
+  ctx.lineTo(W, H * 0.58);
+  ctx.lineTo(W, H * 0.6);
+  ctx.closePath();
+  ctx.fill();
+
+  const seaGrad = ctx.createLinearGradient(0, H * 0.6, 0, H);
+  if (night) {
+    seaGrad.addColorStop(0, '#0a1a3a');
+    seaGrad.addColorStop(1, '#010818');
+  } else {
+    seaGrad.addColorStop(0, '#1a6ea8');
+    seaGrad.addColorStop(0.5, '#0e5a8a');
+    seaGrad.addColorStop(1, '#021a2e');
+  }
+  ctx.fillStyle = seaGrad;
+  ctx.fillRect(0, H * 0.6, W, H * 0.4);
+
+  const waterGlow = ctx.createRadialGradient(sunX, H * 0.6, 0, sunX, H * 0.6, W * 0.3);
+  if (night) {
+    waterGlow.addColorStop(0, 'rgba(200,200,255,0.2)');
+    waterGlow.addColorStop(1, 'rgba(200,200,255,0)');
+  } else {
+    waterGlow.addColorStop(0, 'rgba(255,240,150,0.35)');
+    waterGlow.addColorStop(1, 'rgba(255,200,80,0)');
+  }
+  ctx.fillStyle = waterGlow;
+  ctx.fillRect(0, H * 0.6, W, H * 0.4);
+
+  for (let w = 0; w < 4; w++) {
+    const a = 0.15 - w * 0.03;
+    ctx.strokeStyle = `rgba(255,255,255,${a})`;
+    ctx.lineWidth = 1 + w * 0.4;
+    ctx.beginPath();
+    const yBase = H * 0.63 + w * (H * 0.08);
+    for (let x = 0; x <= W; x += 10) {
+      const y = yBase + Math.sin((x / 60) + t * (1.5 + w * 0.3) + w * 2) * (4 + w * 2);
+      x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  if (currentWeather.id === 'rain' || currentWeather.id === 'storm') {
+    ctx.strokeStyle = 'rgba(180,210,255,0.5)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 70; i++) {
+      const rx = (i * 97 + t * 700) % (W + 50);
+      const ry = (i * 53 + t * 900) % H;
+      ctx.beginPath();
+      ctx.moveTo(rx, ry);
+      ctx.lineTo(rx - 3, ry + 12);
+      ctx.stroke();
+    }
+  }
+
+  if (currentWeather.id === 'fog') {
+    ctx.fillStyle = 'rgba(200,200,200,0.35)';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  if (fishing.phase === 'wait' || fishing.phase === 'bite') {
+    const bobber = BOBBERS.find(b => b.id === S.bobberId) || BOBBERS[0];
+    const bobX = W / 2;
+    const bobY = H * 0.72 + Math.sin(t * 3) * 4 + (fishing.phase === 'bite' ? Math.sin(t * 20) * 12 : 0);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(W * 0.05, H * 0.15);
+    ctx.quadraticCurveTo(W * 0.3, H * 0.4, bobX, bobY - 15);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath();
+    ctx.ellipse(bobX, bobY + 15, 15, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    for (let r = 1; r <= 3; r++) {
+      ctx.beginPath();
+      ctx.arc(bobX, bobY + 8, r * 8 + Math.sin(t * 2) * 3, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = bobber.color;
+    ctx.beginPath(); ctx.ellipse(bobX, bobY, 9, 15, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.ellipse(bobX, bobY - 7, 8.5, 9, 0, 0, Math.PI * 2); ctx.fill();
+
+    if (fishing.phase === 'bite') {
+      ctx.fillStyle = '#f1c40f';
+      ctx.font = 'bold 40px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('!', bobX, bobY - 50);
+    }
+  }
+}
+
+const fishing = {
+  phase:'idle', timer:0, biteWindow:0, fish:null,
+  tension:30, holding:false,
+  zoneStart:30, zoneEnd:70,
+  fishProgress:0, fightTime:0, zoneTargetStart:30,
+};
+
+function startFishing() {
+  if (fishing.phase !== 'idle') return;
+  if (!S.rodId || !S.baitId || (S.baitUses !== Infinity && S.baitUses <= 0)) { toast('🛒 Купи наживку!'); return; }
+  fishing.phase = 'wait';
+  fishing.timer = 0;
+  document.getElementById('castBtn').style.display = 'none';
+  sfxCast();
+  toast('🌊 Заброшено...');
+}
+
+function updateFishing(dt) {
+  if (fishing.phase === 'wait') {
+    fishing.timer += dt;
+    const bait = BAITS.find(b => b.id === S.baitId);
+    let chance = 0.45 * (bait?.bonus || 1) * currentWeather.biteMult;
+    if (S.upgrades.magnet) chance *= 1.15;
+    if (S.upgrades.echo) chance *= 1.4;
+    if (isNight()) chance *= 1.2;
+
+    if (Math.random() < chance * dt) {
+      let bossChance = 0.03;
+      if (S.upgrades.boss) bossChance *= 1.5;
+      fishing.fish = Math.random() < bossChance ? pickBoss() : pickFish();
+      if (S.upgrades.radar) toast(`🎯 ${fishing.fish.isBoss ? '👑 БОСС' : fishing.fish.rarity}: ${fishing.fish.name}`);
+      fishing.phase = 'bite';
+      fishing.biteWindow = S.upgrades.auto ? 999 : 2.5;
+      showPushHint(true);
+      sfxBite();
+      shakeScreen();
+      if (S.upgrades.auto) setTimeout(() => { if (fishing.phase === 'bite') hookFish(); }, 400);
+    }
+  }
+  else if (fishing.phase === 'bite') {
+    if (fishing.biteWindow !== 999) {
+      fishing.biteWindow -= dt;
+      document.getElementById('biteTimerBar').style.width = (fishing.biteWindow / 2.5 * 100) + '%';
+      if (fishing.biteWindow <= 0) {
+        fishing.phase = 'idle';
+        fishing.fish = null;
+        showPushHint(false);
+        document.getElementById('castBtn').style.display = 'block';
+        sfxMiss();
+        toast('💨 Сорвалась...');
+      }
+    }
+  }
+  else if (fishing.phase === 'fight') {
+    fishing.fightTime += dt;
+    const speed = 30;
+    if (fishing.holding) fishing.tension += dt * (speed + (fishing.fish?.weight || 1) * 0.3);
+    else fishing.tension -= dt * speed * 0.7;
+    if (fishing.tension < 0) fishing.tension = 0;
+    if (fishing.tension > 100) fishing.tension = 100;
+
+    fishing.zoneTargetStart += Math.sin(fishing.fightTime * 0.6) * 0.3;
+    fishing.zoneTargetStart = Math.max(15, Math.min(55, fishing.zoneTargetStart));
+    fishing.zoneStart += (fishing.zoneTargetStart - fishing.zoneStart) * dt * 2;
+    fishing.zoneEnd = fishing.zoneStart + 40;
+
+    const inZone = fishing.tension >= fishing.zoneStart && fishing.tension <= fishing.zoneEnd;
+    updateTensionUI();
+    updateTapBtn(inZone);
+
+    if (inZone) fishing.fishProgress += dt * 30;
+    else fishing.fishProgress -= dt * 12;
+
+    if (fishing.tension >= 98) {
+      fishing.phase = 'idle';
+      fishing.fish = null;
+      fishing.holding = false;
+      document.getElementById('tensionWrap').style.display = 'none';
+      document.getElementById('tensionWrap').classList.remove('danger');
+      document.getElementById('fishProgress').style.display = 'none';
+      hideTapBtn();
+      document.getElementById('castBtn').style.display = 'block';
+      sfxSnap();
+      shakeScreen();
+      toast('💥 ЛЕСКА ПОРВАЛАСЬ!');
+      return;
+    }
+
+    if (fishing.fishProgress >= 100) catchFish();
+    else if (fishing.fishProgress <= 0) {
+      fishing.phase = 'idle';
+      fishing.fish = null;
+      fishing.holding = false;
+      document.getElementById('tensionWrap').style.display = 'none';
+      document.getElementById('tensionWrap').classList.remove('danger');
+      document.getElementById('fishProgress').style.display = 'none';
+      hideTapBtn();
+      document.getElementById('castBtn').style.display = 'block';
+      sfxMiss();
+      toast('💔 Сорвалась!');
+    }
+  }
+}
+
+function onTapStart() { if (fishing.phase === 'fight') fishing.holding = true; }
+function onTapEnd() { fishing.holding = false; }
+
+function updateTensionUI() {
+  const wrap = document.getElementById('tensionWrap');
+  const bar = document.getElementById('tensionBar');
+  const zone = document.getElementById('tensionZone');
+  if (!wrap) return;
+  bar.style.width = fishing.tension + '%';
+  zone.style.left = fishing.zoneStart + '%';
+  zone.style.width = (fishing.zoneEnd - fishing.zoneStart) + '%';
+  if (fishing.tension > 90) wrap.classList.add('danger');
+  else wrap.classList.remove('danger');
+}
+
+function updateFishProgress() {
+  document.getElementById('fishProgressBar').style.width = Math.max(0, Math.min(100, fishing.fishProgress)) + '%';
+  document.getElementById('fishProgressLabel').textContent = `Прогресс: ${Math.round(fishing.fishProgress)}%`;
+}
+
+function hookFish() {
+  if (fishing.phase !== 'bite') return;
+  if (!fishing.fish) fishing.fish = pickFish();
+  fishing.phase = 'fight';
+  fishing.fishProgress = 20;
+  fishing.tension = 30;
+  fishing.holding = false;
+  fishing.zoneStart = 30;
+  fishing.zoneTargetStart = 30;
+  fishing.zoneEnd = 70;
+  fishing.fightTime = 0;
+  showPushHint(false);
+  document.getElementById('tensionWrap').style.display = 'block';
+  document.getElementById('fishProgress').style.display = 'block';
+  updateFishProgress();
+  updateTensionUI();
+  showTapBtn();
+  toast('🎣 Держи натяжение!');
+}
+
+function showTapBtn() { document.getElementById('tapBtn').classList.add('show'); }
+function hideTapBtn() {
+  const b = document.getElementById('tapBtn');
+  b.classList.remove('show');
+  b.classList.remove('inZone');
+}
+function updateTapBtn(inZone) {
+  const b = document.getElementById('tapBtn');
+  if (inZone) { b.classList.add('inZone'); b.textContent = '👆 ДЕРЖИ!'; }
+  else { b.classList.remove('inZone'); b.textContent = fishing.tension > 80 ? '⚠️ ОТПУСТИ!' : '👆 ЖМИ!'; }
+}
+
+function showPushHint(show) {
+  const hint = document.getElementById('pushHint');
+  const timer = document.getElementById('biteTimer');
+  const hookBtn = document.getElementById('hookBtn');
+  if (show) {
+    hint.classList.add('show');
+    hookBtn.classList.add('show');
+    if (!S.upgrades.auto) { timer.style.display = 'block'; document.getElementById('biteTimerBar').style.width = '100%'; }
+  } else {
+    hint.classList.remove('show');
+    hookBtn.classList.remove('show');
+    timer.style.display = 'none';
+  }
+}
+
+function shakeScreen() {
+  const g = document.getElementById('game');
+  g.classList.add('shake');
+  setTimeout(() => g.classList.remove('shake'), 300);
+}
+
+function pickFish() {
+  const rod = RODS.find(r => r.id === S.rodId);
+  const list = FISH.filter(f => f.islandId === S.island && !f.isBoss);
+  if (list.length === 0) return { ...FISH[0], weight: 0.5, isBoss: false };
+
+  if (rod && rod.id === 'stick') {
+    return { ...list[0], weight: Math.max(0.5, list[0].weight * (0.85 + Math.random()*0.4)), isBoss:false };
+  }
+
+  const bait = BAITS.find(b => b.id === S.baitId);
+  const island = getIsland();
+  let bonus = (bait?.rare || 0) + island.rarity;
+  if (S.upgrades.lucky) bonus += 0.15;
+
+  const roll = Math.random() * (1 + bonus);
+  let idx = 0;
+  if (roll > 1.7) idx = 4;
+  else if (roll > 1.3) idx = 3;
+  else if (roll > 0.9) idx = 2;
+  else if (roll > 0.5) idx = 1;
+
+  const rarityName = RARITIES[idx];
+  let candidates = list.filter(f => f.rarity === rarityName);
+  if (candidates.length === 0) candidates = list;
+
+  const fish = candidates[Math.floor(Math.random() * candidates.length)];
+  return { ...fish, weight: Math.max(0.5, fish.weight * (0.85 + Math.random() * 0.4)), isBoss: false };
+}
+
+function pickBoss() {
+  const island = getIsland();
+  const boss = FISH.find(f => f.islandId === S.island && f.isBoss);
+  if (boss) return { ...boss, weight: boss.weight * (0.9 + Math.random()*0.2) };
+  return { name: `👑 ${island.boss}`, price: 5000, weight: 100, rarity:'boss', islandId: S.island, islandName: island.name, isBoss:true };
+}
+
+function catchFish() {
+  const fish = fishing.fish;
+  if (!fish) return;
+  const island = getIsland();
+  const bobber = BOBBERS.find(b => b.id === S.bobberId) || BOBBERS[0];
+
+  let mult = island.mult;
+  const bm = { gold:1.1, neon:1.15, ruby:1.2, diamond:1.3, cosmic:1.4, rainbow:1.5, god:2.0 };
+  if (bm[bobber.id]) mult *= bm[bobber.id];
+  if (S.upgrades.tourney) mult *= 1.25;
+  if (S.upgrades.x2money) mult *= 2;
+
+  const price = Math.max(3, Math.floor(fish.price * mult));
+  S.inventory.push({ ...fish, price, sold: false });
+
+  if (S.upgrades.multi && Math.random() < 0.15) {
+    const bonus = pickFish();
+    S.inventory.push({ ...bonus, price: Math.max(3, Math.floor(bonus.price * mult)), sold: false });
+    toast(`✨ Двойной: ${bonus.name}!`);
+  }
+
+  S.caught[fish.name] = (S.caught[fish.name] || 0) + 1;
+  S.totalCaught++;
+
+  if (!S.bestFish || fish.price > S.bestFish.price || (fish.price === S.bestFish.price && fish.weight > S.bestFish.weight)) {
+    S.bestFish = { name: fish.name, price: fish.price, weight: fish.weight, rarity: fish.rarity, islandId: fish.islandId };
+    toast(`🏆 РЕКОРД: ${fish.name}!`);
+  }
+  if (fish.weight > (S.bestWeight || 0)) S.bestWeight = fish.weight;
+
+  let xp = Math.max(3, Math.floor(fish.price / 15));
+  if (S.upgrades.x3xp) xp *= 3;
+  addXp(xp);
+
+  // РАСХОД НАЖИВКИ С АВТО-ПЕРЕКЛЮЧЕНИЕМ
+  if (S.baitId !== 'hands' && S.baitUses !== Infinity) {
+    S.baitUses--;
+    if (!S.baitStock) S.baitStock = {};
+    S.baitStock[S.baitId] = Math.max(0, (S.baitStock[S.baitId] || 0) - 1);
+    
+    if (S.baitUses <= 0) {
+      const availableBaits = BAITS.filter(b => 
+        b.id !== S.baitId && b.id !== 'hands' && (S.baitStock[b.id] || 0) > 0
+      );
+      if (availableBaits.length > 0) {
+        const nextBait = availableBaits[0];
+        S.baitId = nextBait.id;
+        S.baitUses = S.baitStock[nextBait.id];
+        toast(`🔄 → ${nextBait.name} (${S.baitUses} шт)`);
+      } else {
+        S.baitId = 'hands';
+        S.baitUses = Infinity;
+        toast('🖐️ → Руки');
+      }
+    }
+  }
+
+  if (fish.isBoss) { S.bossesDefeated[island.id] = true; toast('👑 БОСС ПОБЕЖДЁН!'); }
+
+  sfxCatch();
+
+  const popup = document.getElementById('popup');
+  document.getElementById('popupTitle').textContent = fish.isBoss ? '👑 БОСС!' : '🎉 Поймал!';
+  document.getElementById('popupFish').textContent = `🐟 ${fish.name} (${fish.weight.toFixed(2)} кг)`;
+  document.getElementById('popupReward').textContent = `💰 ${price.toLocaleString()}`;
+  document.getElementById('popupXp').textContent = `+${xp} XP`;
+  popup.classList.add('show');
+  setTimeout(() => popup.classList.remove('show'), 1400);
+
+  checkAchievements();
+  checkQuests();
+
+  fishing.phase = 'idle';
+  fishing.fish = null;
+  fishing.holding = false;
+  document.getElementById('tensionWrap').style.display = 'none';
+  document.getElementById('tensionWrap').classList.remove('danger');
+  document.getElementById('fishProgress').style.display = 'none';
+  hideTapBtn();
+  document.getElementById('castBtn').style.display = 'block';
+
+  updateHUD();
+  save();
+}
+
+function addXp(amount) {
+  S.xp += amount;
+  while (S.xp >= S.xpNeeded) {
+    S.xp -= S.xpNeeded;
+    S.level++;
+    S.xpNeeded = Math.floor(S.xpNeeded * 1.4);
+    sfxLevelUp();
+    toast(`⭐ Уровень ${S.level}!`);
+  }
+  updateHUD();
+}
+
+function checkAchievements() {
+  const give = (id) => {
+    if (S.achievements[id]) return;
+    S.achievements[id] = true;
+    const a = ACHIEVEMENTS.find(x => x.id === id);
+    if (a) { S.money += a.reward; toast(`🏆 ${a.name} (+${a.reward.toLocaleString()}💰)`); sfxCoin(); }
+  };
+  if (S.totalCaught >= 1) give('first');
+  if (S.totalCaught >= 10) give('ten');
+  if (S.totalCaught >= 100) give('hundred');
+  if (S.totalCaught >= 1000) give('thousand');
+  if (S.totalCaught >= 10000) give('tenthousand');
+  if (S.totalEarned >= 50000) give('rich');
+  if (S.totalEarned >= 5000000) give('richer');
+  if (S.totalEarned >= 5000000000) give('billionaire');
+  if (Object.keys(S.caught).some(n => FISH.find(f => f.name === n && f.rarity === 'legendary'))) give('legend');
+  if (Object.keys(S.caught).some(n => FISH.find(f => f.name === n && f.rarity === 'mythic'))) give('myth');
+  const bc = Object.keys(S.bossesDefeated).length;
+  if (bc >= 1) give('boss1');
+  if (bc >= 10) give('boss10');
+  if (bc >= 30) give('bossall');
+  const ic = S.unlockedIslands.length;
+  if (ic >= 5) give('isl5');
+  if (ic >= 10) give('isl10');
+  if (ic >= 30) give('islall');
+  const sc = Object.keys(S.caught).length;
+  if (sc >= 10) give('coll10');
+  if (sc >= 50) give('coll50');
+  if (sc >= FISH.length) give('collall');
+}
+
+function checkQuests() {
+  QUESTS.forEach(q => {
+    if (S.quests[q.id]) return;
+    let val = 0;
+    if (q.type === 'caught') val = S.totalCaught;
+    else if (q.type === 'bosses') val = Object.keys(S.bossesDefeated).length;
+    else if (q.type === 'species') val = Object.keys(S.caught).length;
+    else if (q.type === 'islands') val = S.unlockedIslands.length;
+    else if (q.type === 'earned') val = S.totalEarned;
+    if (val >= q.target) {
+      S.quests[q.id] = true;
+      S.money += q.reward;
+      toast(`📜 ${q.name}! (+${q.reward.toLocaleString()}💰)`);
+      sfxCoin();
+    }
+  });
+}
+
+function updateHUD() {
+  if (!S) return;
+  document.getElementById('money').textContent = Math.floor(S.money).toLocaleString();
+  document.getElementById('level').textContent = S.level;
+  const rod = RODS.find(r => r.id === S.rodId);
+  const bait = BAITS.find(b => b.id === S.baitId);
+  document.getElementById('rodName').textContent = rod ? rod.name : 'Палка';
+  document.getElementById('baitName').textContent = bait ? bait.name : 'Руки';
+  document.getElementById('baitCount').textContent = S.baitUses === Infinity ? '∞' : (S.baitUses > 0 ? S.baitUses : 0);
+  document.getElementById('islandName').textContent = getIsland().name;
+  document.getElementById('weather').textContent = currentWeather.name;
+  document.getElementById('xpBar').style.width = (S.xp / S.xpNeeded * 100) + '%';
+  document.getElementById('invBadge').textContent = S.inventory.length;
+  document.getElementById('invBadge').style.display = S.inventory.length ? 'flex' : 'none';
+  document.getElementById('achBadge').textContent = Object.keys(S.achievements).length;
+  document.getElementById('achBadge').style.display = Object.keys(S.achievements).length ? 'flex' : 'none';
+  const prof = getProfiles().find(p => p.id === CURRENT_PROFILE);
+  if (prof) document.getElementById('profileName').textContent = prof.name;
+}
+
+function toast(msg) {
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  wrap.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, 2200);
+  while (wrap.children.length > 3) wrap.removeChild(wrap.firstChild);
+}
+
+function openModal(id) { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+let currentTab = 'rods';
+let baitQty = 5;
+const QTY_OPTIONS = [1, 5, 10, 50, 100, 500];
+
+function switchTab(tab, btn) {
+  currentTab = tab;
+  document.querySelectorAll('#shopTabs .tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderShop();
+}
+
+function switchQty(q) {
+  baitQty = q;
+  renderShop();
+}
+
+function renderQtyPanel() {
+  const w = document.getElementById('qtyPanelWrap');
+  if (!w) return;
+  if (currentTab !== 'baits') { w.innerHTML = ''; return; }
+  w.innerHTML = `
+    <div class="qtyPanel">
+      <span class="qtyLabel">📦 Количество:</span>
+      ${QTY_OPTIONS.map(q => 
+        `<button class="qtyBtn${q === baitQty ? ' active' : ''}" onclick="switchQty(${q})">${q}</button>`
+      ).join('')}
+    </div>
+  `;
+}
+
+function makeBuyBtn(text, cls, disabled, onClick) {
+  const btn = document.createElement('button');
+  btn.className = 'buyBtn ' + (cls || '');
+  btn.textContent = text;
+  btn.disabled = !!disabled;
+  if (!disabled) btn.onclick = (e) => { e.stopPropagation(); onClick(); };
+  return btn;
+}
+
+function renderShop() {
+  const c = document.getElementById('shopItems');
+  c.innerHTML = '';
+  renderQtyPanel();
+
+  if (currentTab === 'rods') {
+    RODS.forEach(rod => {
+      const owned = S.ownedRods.includes(rod.id);
+      const equipped = S.rodId === rod.id;
+      const canBuy = S.money >= rod.price;
+      const div = document.createElement('div');
+      div.className = 'item' + (owned ? ' owned' : '') + (equipped ? ' equipped' : '');
+      if (rod.power >= 30) div.classList.add('rainbow');
+      else if (rod.power >= 15) div.classList.add('god');
+      else if (rod.power >= 8) div.classList.add('mythic');
+      else if (rod.power >= 4) div.classList.add('legendary');
+      div.innerHTML = `<h3>${rod.name}</h3><div class="desc">${rod.desc}<br>💪 x${rod.power}</div><div class="price">${owned ? (equipped ? '✅ Надето' : 'Куплено') : (rod.price === 0 ? 'Стартовая' : rod.price.toLocaleString() + '💰')}</div>`;
+      if (equipped) div.appendChild(makeBuyBtn('✅ НАДЕТО', 'equipped', true));
+      else if (owned) div.appendChild(makeBuyBtn('👆 НАДЕТЬ', 'wear', false, () => { S.rodId = rod.id; toast(`✅ ${rod.name}`); sfxCoin(); updateHUD(); save(); renderShop(); }));
+      else if (canBuy) div.appendChild(makeBuyBtn('💰 КУПИТЬ', '', false, () => { S.money -= rod.price; S.ownedRods.push(rod.id); S.rodId = rod.id; toast(`✅ ${rod.name}`); sfxCoin(); updateHUD(); save(); renderShop(); }));
+      else div.appendChild(makeBuyBtn('МАЛО 💰', 'disabled-money', true));
+      c.appendChild(div);
+    });
+  }
+  else if (currentTab === 'baits') {
+    if (!S.baitStock) S.baitStock = {};
+    
+    BAITS.forEach(bait => {
+      const stock = S.baitStock[bait.id] || 0;
+      const equipped = S.baitId === bait.id;
+      const isFree = bait.price === 0;
+      const totalPrice = bait.price * baitQty;
+      const canBuy = isFree ? false : S.money >= totalPrice;
+      
+      const div = document.createElement('div');
+      div.className = 'item' + (equipped ? ' equipped' : '');
+      if (stock > 0 && !equipped) div.classList.add('owned');
+      if (bait.rare >= 2.5) div.classList.add('rainbow');
+      else if (bait.rare >= 1.5) div.classList.add('god');
+      else if (bait.rare >= 0.75) div.classList.add('mythic');
+      else if (bait.rare >= 0.5) div.classList.add('legendary');
+      
+      const priceText = isFree ? '🖐️ Бесплатно (∞)' : `${bait.price.toLocaleString()}💰 / шт`;
+      
+      let stockText = '';
+      if (isFree) {
+        stockText = `<div class="baitStock"><span>📦</span><span>∞ запаса</span></div>`;
+      } else if (stock > 0) {
+        stockText = `<div class="baitStock"><span>📦</span><span>В запасе: ${stock} шт</span></div>`;
+      } else {
+        stockText = `<div class="baitStock empty"><span>📦</span><span>Нет в запасе</span></div>`;
+      }
+      
+      div.innerHTML = `
+        <h3>${bait.name}</h3>
+        <div class="desc">
+          ${bait.desc}<br>
+          ✨ x${bait.bonus} · 🎲 +${Math.floor(bait.rare*100)}%<br>
+          ${priceText}
+        </div>
+        ${stockText}
+        <div class="price">💰 Итого за ${baitQty}: ${isFree ? '0' : totalPrice.toLocaleString()}</div>
+      `;
+      
+      const btnRow = document.createElement('div');
+      btnRow.style.display = 'flex';
+      btnRow.style.gap = '6px';
+      btnRow.style.marginTop = '4px';
+      btnRow.style.flexWrap = 'wrap';
+      
+      // Если наживка активна (уже используем)
+      if (equipped) {
+        const actBtn = document.createElement('button');
+        actBtn.className = 'buyBtn equipped';
+        actBtn.textContent = isFree ? '✅ АКТИВНО (∞)' : `✅ АКТИВНО (${S.baitUses})`;
+        actBtn.disabled = true;
+        actBtn.style.flex = '1';
+        actBtn.style.minWidth = '100%';
+        btnRow.appendChild(actBtn);
+      }
+      
+      // Кнопка ВЫБРАТЬ (если есть в запасе и не выбрана)
+      if (!equipped && (stock > 0 || isFree)) {
+        const selBtn = document.createElement('button');
+        selBtn.className = 'buyBtn wear';
+        selBtn.textContent = '👆 ВЫБРАТЬ';
+        selBtn.style.flex = '1';
+        selBtn.onclick = (e) => {
+          e.stopPropagation();
+          S.baitId = bait.id;
+          S.baitUses = isFree ? Infinity : stock;
+          toast(`✅ Выбрано: ${bait.name}`);
+          sfxCoin();
+          updateHUD();
+          save();
+          renderShop();
+        };
+        btnRow.appendChild(selBtn);
+      }
+      
+      // Кнопка КУПИТЬ
+      if (!isFree) {
+        const buyBtn = document.createElement('button');
+        buyBtn.className = 'buyBtn ' + (canBuy ? '' : 'disabled-money');
+        buyBtn.textContent = canBuy ? `💰 +${baitQty}` : 'МАЛО 💰';
+        buyBtn.disabled = !canBuy;
+        buyBtn.style.flex = '1';
+        buyBtn.onclick = (e) => {
+          e.stopPropagation();
+          if (S.money < totalPrice) return;
+          S.money -= totalPrice;
+          if (!S.baitStock) S.baitStock = {};
+          S.baitStock[bait.id] = (S.baitStock[bait.id] || 0) + baitQty;
+          toast(`✅ +${baitQty} ${bait.name}`);
+          sfxCoin();
+          updateHUD();
+          save();
+          renderShop();
+        };
+        btnRow.appendChild(buyBtn);
+      }
+      
+      div.appendChild(btnRow);
+      c.appendChild(div);
+    });
+  }
+  else if (currentTab === 'upgrades') {
+    UPGRADES.forEach(u => {
+      const owned = !!S.upgrades[u.id];
+      const canBuy = S.money >= u.price;
+      const div = document.createElement('div');
+      div.className = 'item' + (owned ? ' owned' : '');
+      div.innerHTML = `<h3>⚡ ${u.name}</h3><div class="desc">${u.desc}</div><div class="price">${owned ? '✅ Куплено' : u.price.toLocaleString() + '💰'}</div>`;
+      if (owned) div.appendChild(makeBuyBtn('✅ КУПЛЕНО', 'equipped', true));
+      else if (canBuy) div.appendChild(makeBuyBtn('💰 КУПИТЬ', '', false, () => { S.money -= u.price; S.upgrades[u.id] = true; toast(`⚡ ${u.name}!`); sfxCoin(); updateHUD(); save(); renderShop(); }));
+      else div.appendChild(makeBuyBtn('МАЛО 💰', 'disabled-money', true));
+      c.appendChild(div);
+    });
+  }
+  else if (currentTab === 'bobbers') {
+    BOBBERS.forEach(b => {
+      const owned = S.ownedBobbers.includes(b.id);
+      const equipped = S.bobberId === b.id;
+      const canBuy = S.money >= b.price || b.price === 0;
+      const div = document.createElement('div');
+      div.className = 'item' + (owned ? ' owned' : '') + (equipped ? ' equipped' : '');
+      div.innerHTML = `<h3>🎈 ${b.name}</h3><div class="desc">${b.desc}</div><div class="price">${owned ? (equipped ? '✅ Надето' : 'Куплено') : b.price.toLocaleString() + '💰'}</div>`;
+      if (equipped) div.appendChild(makeBuyBtn('✅ НАДЕТО', 'equipped', true));
+      else if (owned) div.appendChild(makeBuyBtn('👆 НАДЕТЬ', 'wear', false, () => { S.bobberId = b.id; toast(`🎈 ${b.name}`); sfxCoin(); updateHUD(); save(); renderShop(); }));
+      else if (canBuy) div.appendChild(makeBuyBtn('💰 КУПИТЬ', '', false, () => { S.money -= b.price; S.ownedBobbers.push(b.id); S.bobberId = b.id; toast(`🎈 ${b.name}`); sfxCoin(); updateHUD(); save(); renderShop(); }));
+      else div.appendChild(makeBuyBtn('МАЛО 💰', 'disabled-money', true));
+      c.appendChild(div);
+    });
+  }
+}
+
+function renderIslands() {
+  const c = document.getElementById('islandItems');
+  c.innerHTML = '';
+  document.getElementById('islandProgress').textContent = `(${S.unlockedIslands.length}/${ISLANDS.length})`;
+
+  ISLANDS.forEach(island => {
+    const unlocked = S.unlockedIslands.includes(island.id);
+    const canUnlock = S.money >= island.unlock;
+    const current = S.island === island.id;
+    const bossDone = S.bossesDefeated[island.id];
+
+    const div = document.createElement('div');
+    div.className = 'item' + (unlocked ? ' owned' : '') + (current ? ' equipped' : '') + (!unlocked && !canUnlock ? ' locked' : '');
+    if (island.id >= 25) div.classList.add('rainbow');
+    else if (island.id >= 20) div.classList.add('god');
+    else if (island.id >= 15) div.classList.add('mythic');
+    else if (island.id >= 10) div.classList.add('legendary');
+
+    div.innerHTML = `
+      <h3>${island.name} ${bossDone ? '👑' : ''}</h3>
+      <div class="desc">
+        💰 Множитель: x${island.mult}<br>
+        🎲 Редкость: +${Math.floor(island.rarity*100)}%<br>
+        👑 Босс: ${island.boss}<br>
+        🐟 Рыб: 5 + босс
+      </div>
+      <div class="price">${unlocked ? (current ? '📍 Здесь' : 'Открыт') : island.unlock.toLocaleString() + '💰'}</div>
+    `;
+
+    if (current) {
+      div.appendChild(makeBuyBtn('📍 ТЕКУЩИЙ', 'equipped', true));
+    } else if (unlocked) {
+      div.appendChild(makeBuyBtn('➡️ ПЕРЕЙТИ', 'wear', false, () => {
+        S.island = island.id;
+        toast(`🏝️ ${island.name}`);
+        sfxCoin(); updateHUD(); save(); renderIslands(); checkQuests();
+      }));
+    } else if (canUnlock) {
+      div.appendChild(makeBuyBtn('🔓 ОТКРЫТЬ', '', false, () => {
+        S.money -= island.unlock;
+        S.unlockedIslands.push(island.id);
+        S.island = island.id;
+        toast(`🎉 ${island.name}!`);
+        sfxCoin(); updateHUD(); save(); renderIslands(); checkAchievements(); checkQuests();
+      }));
+    } else {
+      div.appendChild(makeBuyBtn('🔒 ЗАКРЫТО', 'disabled-money', true));
+    }
+    c.appendChild(div);
+  });
+}
+
+function renderQuests() {
+  const c = document.getElementById('questItems');
+  c.innerHTML = '';
+  document.getElementById('questProgress').textContent = `(${Object.keys(S.quests).length}/${QUESTS.length})`;
+  QUESTS.forEach(q => {
+    const done = !!S.quests[q.id];
+    let cur = 0;
+    if (q.type === 'caught') cur = S.totalCaught;
+    else if (q.type === 'bosses') cur = Object.keys(S.bossesDefeated).length;
+    else if (q.type === 'species') cur = Object.keys(S.caught).length;
+    else if (q.type === 'islands') cur = S.unlockedIslands.length;
+    else if (q.type === 'earned') cur = S.totalEarned;
+    const prog = Math.min(100, Math.floor(cur / q.target * 100));
+
+    const div = document.createElement('div');
+    div.className = 'item' + (done ? ' owned' : '');
+    div.innerHTML = `
+      <h3>${done ? '✅' : '📜'} ${q.name}</h3>
+      <div class="desc">${q.desc}</div>
+      <div style="background:rgba(0,0,0,0.3);height:6px;border-radius:3px;overflow:hidden;">
+        <div style="height:100%;width:${prog}%;background:linear-gradient(90deg,#2ecc71,#f1c40f);"></div>
+      </div>
+      <div class="price">💰 ${q.reward.toLocaleString()}</div>
+      <div style="font-size:10px;opacity:0.7">${Math.min(cur,q.target).toLocaleString()} / ${q.target.toLocaleString()}</div>
+    `;
+    c.appendChild(div);
+  });
+}
+
+function renderInv() {
+  const c = document.getElementById('invItems');
+  c.innerHTML = '';
+  let total = 0;
+  document.getElementById('invCount').textContent = `(${S.inventory.length})`;
+
+  S.inventory.forEach((f, idx) => {
+    total += f.price;
+    const tier = f.rarity === 'god' ? 'god' : f.rarity === 'mythic' ? 'mythic' : f.rarity === 'legendary' ? 'legendary' : '';
+    const div = document.createElement('div');
+    div.className = 'item ' + tier;
+    div.innerHTML = `<h3>${f.name}</h3><div class="desc">⚖️ ${f.weight.toFixed(2)} кг<br>⭐ ${f.rarity}</div><div class="price">💰 ${f.price.toLocaleString()}</div>`;
+    div.appendChild(makeBuyBtn('💸 ПРОДАТЬ', 'sell', false, () => {
+      S.money += f.price; S.totalEarned += f.price;
+      S.inventory.splice(idx, 1);
+      sfxCoin(); updateHUD(); save(); renderInv(); checkAchievements(); checkQuests();
+    }));
+    c.appendChild(div);
+  });
+
+  document.getElementById('invTotal').textContent = total.toLocaleString();
+  if (S.inventory.length === 0) c.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;opacity:0.6">🎒 Садок пуст</div>';
+}
+
+function sellAll() {
+  if (S.inventory.length === 0) return toast('Нечего продавать');
+  let total = 0;
+  S.inventory.forEach(f => { total += f.price; S.totalEarned += f.price; });
+  S.money += total;
+  S.inventory = [];
+  sfxCoin();
+  toast(`💸 Продано на ${total.toLocaleString()}💰`);
+  updateHUD(); save(); renderInv(); checkAchievements(); checkQuests();
+}
+
+function renderAch() {
+  const c = document.getElementById('achItems');
+  c.innerHTML = '';
+  document.getElementById('achProgress').textContent = `(${Object.keys(S.achievements).length}/${ACHIEVEMENTS.length})`;
+  ACHIEVEMENTS.forEach(a => {
+    const done = !!S.achievements[a.id];
+    const div = document.createElement('div');
+    div.className = 'item' + (done ? ' owned' : ' locked');
+    div.innerHTML = `<h3>${done ? '🏆' : '🔒'} ${a.name}</h3><div class="desc">${a.desc}</div><div class="price">${done ? '✅ Получено' : '+' + a.reward.toLocaleString() + '💰'}</div>`;
+    c.appendChild(div);
+  });
+}
+
+function renderStats() {
+  const body = document.getElementById('statsBody');
+  const top = Object.entries(S.caught).sort((a,b) => b[1] - a[1]).slice(0, 10);
+  const best = S.bestFish ? `
+    <div style="background:linear-gradient(135deg,#8e44ad,#c0392b);border:3px solid #f1c40f;border-radius:16px;padding:14px;margin-bottom:14px;text-align:center;">
+      <div style="color:#f1c40f;font-size:14px;font-weight:900;">🏆 ЛУЧШАЯ РЫБА</div>
+      <div style="font-size:22px;font-weight:900;margin:6px 0;">${S.bestFish.name}</div>
+      <div style="color:#f1c40f;">💰 ${S.bestFish.price.toLocaleString()} · ⚖️ ${S.bestFish.weight.toFixed(2)} кг</div>
+    </div>` : '<div style="text-align:center;padding:20px;opacity:0.6">Пока ничего не поймано</div>';
+
+  body.innerHTML = `
+    ${best}
+    <div class="statRow"><span>🏆 Рекорд по весу</span><span>${(S.bestWeight || 0).toFixed(2)} кг</span></div>
+    <div class="statRow"><span>🎣 Всего поймано</span><span>${S.totalCaught}</span></div>
+    <div class="statRow"><span>💰 Всего заработано</span><span>${Math.floor(S.totalEarned).toLocaleString()}</span></div>
+    <div class="statRow"><span>⭐ Уровень</span><span>${S.level}</span></div>
+    <div class="statRow"><span>🏝️ Островов открыто</span><span>${S.unlockedIslands.length}/${ISLANDS.length}</span></div>
+    <div class="statRow"><span>👑 Боссов побеждено</span><span>${Object.keys(S.bossesDefeated).length}/${ISLANDS.length}</span></div>
+    <div class="statRow"><span>🏆 Достижений</span><span>${Object.keys(S.achievements).length}/${ACHIEVEMENTS.length}</span></div>
+    <div class="statRow"><span>📜 Квестов</span><span>${Object.keys(S.quests).length}/${QUESTS.length}</span></div>
+    <div class="statRow"><span>🎒 Рыб в садке</span><span>${S.inventory.length}</span></div>
+    <div class="statRow"><span>🐟 Видов поймано</span><span>${Object.keys(S.caught).length}/${FISH.length}</span></div>
+    <h3 style="color:#f1c40f;margin:14px 0 8px;font-size:14px">🏅 Топ-10:</h3>
+    ${top.map(([n,c]) => `<div class="statRow"><span>${n}</span><span>x${c}</span></div>`).join('') || '<div style="opacity:0.6;text-align:center">Пока ничего</div>'}
+    <button class="buyBtn danger" style="margin-top:14px;padding:14px;" onclick="resetGame()">🔄 СБРОСИТЬ</button>
+  `;
+}
+
+function resetGame() {
+  if (!confirm('Сбросить прогресс?')) return;
+  S = {...defaultState};
+  save();
+  updateHUD();
+  toast('🔄 Сброшено');
+}
+
+function renderPremium() {
+  const c = document.getElementById('premiumItems');
+  c.innerHTML = '';
+  const items = [
+    { name:'🎁 Сундук удачи', price:5000, desc:'Случайная рыба.' },
+    { name:'⚡ x2 Опыт', price:10000, desc:'Удваивает XP.' },
+    { name:'🍀 x2 Удача', price:15000, desc:'Шанс редкой.' },
+    { name:'💰 Продать x2', price:25000, desc:'x2 продажа.' },
+  ];
+  items.forEach(it => {
+    const div = document.createElement('div');
+    div.className = 'item';
+    div.innerHTML = `<h3>${it.name}</h3><div class="desc">${it.desc}</div><div class="price">${it.price.toLocaleString()}💰</div>`;
+    if (S.money >= it.price) {
+      div.appendChild(makeBuyBtn('💰 КУПИТЬ', '', false, () => {
+        S.money -= it.price;
+        if (it.name.includes('Сундук')) {
+          const f = pickFish();
+          S.inventory.push({ ...f, price: Math.max(3, Math.floor(f.price * getIsland().mult)) });
+          toast(`🎁 ${f.name}!`);
+        } else if (it.name.includes('Продать')) {
+          let t = 0; S.inventory.forEach(f => { t += f.price*2; S.totalEarned += f.price*2; });
+          S.money += t; S.inventory = [];
+          toast(`💰 +${t.toLocaleString()}`);
+        } else {
+          toast('⚡ Активировано');
+        }
+        sfxCoin(); updateHUD(); save(); renderPremium();
+      }));
+    } else {
+      div.appendChild(makeBuyBtn('МАЛО 💰', 'disabled-money', true));
+    }
+    c.appendChild(div);
+  });
+}
+
+function checkDaily() {
+  const last = S.lastDaily || 0;
+  if (Date.now() - last >= 86400000 && S.totalCaught >= 5) {
+    const amount = 100 + S.level * 50;
+    document.getElementById('dailyAm').textContent = `+${amount} 💰`;
+    document.getElementById('dailyReward').classList.add('show');
+    S.pendingDaily = amount;
+  }
+}
+function claimDaily() {
+  if (S.pendingDaily) {
+    S.money += S.pendingDaily;
+    S.lastDaily = Date.now();
+    S.pendingDaily = 0;
+    sfxCoin(); updateHUD(); save();
+  }
+  document.getElementById('dailyReward').classList.remove('show');
+}
+
+function closeTutorial() {
+  S.tutorialShown = true;
+  document.getElementById('startTutorial').classList.remove('show');
+  save();
+}
+
+const tapEl = document.getElementById('tapBtn');
+if (tapEl) {
+  tapEl.addEventListener('touchstart', (e) => { e.preventDefault(); onTapStart(); }, { passive: false });
+  tapEl.addEventListener('touchend', (e) => { e.preventDefault(); onTapEnd(); }, { passive: false });
+  tapEl.addEventListener('touchcancel', (e) => { e.preventDefault(); onTapEnd(); }, { passive: false });
+  tapEl.addEventListener('mousedown', (e) => { e.preventDefault(); onTapStart(); });
+  tapEl.addEventListener('mouseup', (e) => { e.preventDefault(); onTapEnd(); });
+  tapEl.addEventListener('mouseleave', onTapEnd);
+}
+
+let lastT = performance.now();
+function loop() {
+  const now = performance.now();
+  const dt = Math.min(0.05, (now - lastT) / 1000);
+  lastT = now;
+  if (S) {
+    updateWeather(dt);
+    updateFishing(dt);
+    updateFishProgress();
+    draw();
+  }
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener('load', () => {
+  initProfiles();
+  checkAutoRotate();
+  try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); } catch(e) {}
+  resize();
+  setTimeout(resize, 200);
+  setTimeout(resize, 600);
+
+  document.getElementById('soundBtn').textContent = S.soundOn ? '🔊' : '🔇';
+  updateHUD();
+  loop();
+
+  setTimeout(() => {
+    if (!S.tutorialShown) document.getElementById('startTutorial').classList.add('show');
+    else toast('🎣 Нажми «Забросить»');
+  }, 500);
+  setTimeout(checkDaily, 1000);
+});
+
+document.addEventListener('touchstart', initAudio, { once: true });
+document.addEventListener('click', initAudio, { once: true });
+document.addEventListener('contextmenu', e => e.preventDefault());
+</script>
+</body>
+  </html>
