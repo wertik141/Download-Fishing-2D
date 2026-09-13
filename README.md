@@ -31,7 +31,7 @@ An exciting fishing simulator for your phone! Explore **30 unique islands**, eac
 
 ## 📥 Download
 
-Open the game here: **[Play Now](https://ВАШ_НИК.github.io/ИМЯ_РЕПОЗИТОРИЯ/)**
+Open the game here: **[Play Now](https://wertik.github.io/Downoald-Fishing-2D/)**
 
 ## 🏆 Top Fish
 
