@@ -44,4 +44,4 @@ Open the game here: **[Play Now](https://wertik141.github.io/Download-Fishing-2D
 
 ---
 
-**🎣 Have fun and catch the biggest fish!**
+🎣 **Tight lines and big catches!**
