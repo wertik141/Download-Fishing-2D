@@ -41,7 +41,7 @@ Open the game right now in your browser:
 
 Get the mobile app on your phone:
 
-**[📥 Download APK](https://github.com/wertik141/Download-Fishing-2D/raw/main/Fishing_3.apk)**
+**[📥 Download APK](https://github.com/wertik141/Download-Fishing-2D/raw/main/Fishing_3_1_1.apk)**
 
 > **Note:** After downloading, you may need to allow **"Install from unknown sources"** in your phone settings.
 
